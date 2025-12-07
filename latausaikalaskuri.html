@@ -2,12 +2,12 @@
 <html lang="fi">
 <head>
     <meta charset="UTF-8">
-    <title>Latausaikalaskuri</title>
+    <title>Latausaikalaskuri ja Hinta-analyysi</title>
     <style>
         :root {
-          --font-size-small: 72px;
-          --font-size-medium: 80px;
-          --font-size-large: 96px;
+            --font-size-small: 72px;
+            --font-size-medium: 80px;
+            --font-size-large: 96px;
         }
         body {
             font-family: Arial, sans-serif;
@@ -30,62 +30,275 @@
             width: 100%;
             box-sizing: border-box;
         }
-        #result_etron {
-            font-size: var(--font-size-medium);
+        .result-car {
+            border: 2px solid #ccc;
+            padding: 10px;
             margin-top: 15px;
+        }
+        .result-title {
+            font-size: var(--font-size-medium);
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .result-detail {
+            font-size: var(--font-size-small);
+            margin-bottom: 5px;
+        }
+        .optimized {
+            color: green;
             font-weight: bold;
         }
-        #result_id4 {
-            font-size: var(--font-size-medium);
-            margin-top: 15px;
-            font-weight: bold;
+        .warning {
+            color: orange;
+            font-weight: normal;
+        }
+        #price_status {
+            font-size: var(--font-size-small);
+            margin-top: 10px;
+            font-style: italic;
         }
     </style>
 </head>
 <body>
     <h2>Latausaikalaskuri</h2>
-    
+        
     <div class="input-group">
         <label for="charge">Jäljellä oleva lataus (%):</label>
         <input type="number" id="charge" min="0" max="100" required>
     </div>
-    
+        
     <div class="input-group">
         <label for="target">Tavoitelataus (%):</label>
         <input type="number" id="target" min="0" max="100" value="80" required>
     </div>
-    
+        
+    <div class="input-group">
+        <label for="margin">Myyjän marginaali (snt/kWh):</label>
+        <input type="number" id="margin" min="0" step="0.01" value="0.30">
+    </div>
+        
     <div class="input-group">
         <button onclick="calculateChargingTime()">Laske</button>
     </div>
 
-    <p id="result_etron"></p>
-    <p id="result_id4"></p>
+    <p id="price_status">Ladataan hintoja... ⏳</p>
+
+    <div id="result_etron" class="result-car"></div>
+    <div id="result_id4" class="result-car"></div>
 
     <script>
-        const batteryCapacityETron = 95; // kWh
-        const batteryCapacityID4 = 77; // kWh
-        const chargingPower = 10.8; // kW
+        let sahkoHinnat = []; 
+        const PRICE_STATUS_ELEMENT = document.getElementById('price_status');
 
-        function calculateChargingTime() {
-            const remainingCharge = document.getElementById("charge").value;
-            const targetCharge    = document.getElementById("target").value || 80; // Käytä oletusarvona 80%
+        const CAR_MODELS = {
+            etron: { name: "Audi e-tron", capacity: 95 }, 
+            id4: { name: "VW ID.4", capacity: 77 }       
+        };
+        const chargingPower = 10.8; // PALAUTETTU: Latausteho 10.8 kW
+        const INTERVAL_MINUTES = 15; 
+        const INTERVALS_PER_HOUR = 60 / INTERVAL_MINUTES; 
+        const TOTAL_INTERVALS = 24 * INTERVALS_PER_HOUR; 
 
-            const remainingCapacityETron = batteryCapacityETron * ((targetCharge - remainingCharge) / 100);
-            const remainingCapacityID4   = batteryCapacityID4   * ((targetCharge - remainingCharge) / 100);
-            const timeInHoursETron       = remainingCapacityETron / chargingPower;
-            const timeInHoursID4         = remainingCapacityID4   / chargingPower;
-
-            // Laske tunnit ja minuutit
-            const hoursETron   = Math.floor(timeInHoursETron);
-            const hoursID4     = Math.floor(timeInHoursID4);
-            const minutesETron = Math.round((timeInHoursETron - hoursETron) * 60);
-            const minutesID4   = Math.round((timeInHoursID4   - hoursID4)   * 60);
-
-            // Näytä tulos tunneissa ja minuuteissa
-            document.getElementById("result_etron").innerText = `e-tron: ${hoursETron} h ${minutesETron} min`;
-            document.getElementById("result_id4"  ).innerText = `ID.4: ${hoursID4} h ${minutesID4} min`;
+        // ------------------------------------------------------------------
+        // LOCAL STORAGE: TALLENNUS
+        // ------------------------------------------------------------------
+        function saveValues(charge, target, margin) {
+            try {
+                localStorage.setItem('charge_value', charge);
+                localStorage.setItem('target_value', target);
+                localStorage.setItem('margin_value', margin); 
+            } catch (e) {
+                console.error("Local Storage tallennus epäonnistui:", e);
+            }
         }
+        
+        // ------------------------------------------------------------------
+        // LOCAL STORAGE: LATAUS
+        // ------------------------------------------------------------------
+        function loadSavedValues() {
+            try {
+                const savedCharge = localStorage.getItem('charge_value');
+                const savedTarget = localStorage.getItem('target_value');
+                const savedMargin = localStorage.getItem('margin_value'); 
+
+                if (savedCharge !== null) {
+                    document.getElementById('charge').value = savedCharge;
+                }
+                if (savedTarget !== null) {
+                    document.getElementById('target').value = savedTarget;
+                }
+                if (savedMargin !== null) {
+                    document.getElementById('margin').value = savedMargin;
+                }
+            } catch (e) {
+                console.error("Local Storage lataus epäonnistui:", e);
+            }
+        }
+
+        // ------------------------------------------------------------------
+        // FUNKTIO: Hintojen Haku
+        // ------------------------------------------------------------------
+        async function fetchPrices() {
+            const API_URL = 'https://api.spot-hinta.fi/Today'; 
+            
+            PRICE_STATUS_ELEMENT.innerText = 'Ladataan hintoja... ⏳';
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                
+                if (Array.isArray(data) && data.length >= TOTAL_INTERVALS) {
+                    
+                    // Otetaan PriceWithTax (€/kWh) JA MUUNNETAAN SENTTEIHIN (x 100).
+                    sahkoHinnat = data.map(item => parseFloat(item.PriceWithTax) * 100).slice(0, TOTAL_INTERVALS); 
+                    
+                    if (sahkoHinnat.some(isNaN)) {
+                         throw new Error("API palautti virheellisiä hintatietoja.");
+                    }
+                    
+                    PRICE_STATUS_ELEMENT.innerText = `✅ Pörssihinnat ladattu ${sahkoHinnat.length} jaksolta.`;
+                    PRICE_STATUS_ELEMENT.style.color = 'green';
+                    
+                } else {
+                    throw new Error(`Ladatussa datassa ei ollut tarvittavaa määrää jaksoja (${TOTAL_INTERVALS}).`);
+                }
+            } catch (error) {
+                console.error("Hintojen haku epäonnistui:", error);
+                PRICE_STATUS_ELEMENT.innerText = '❌ Hintojen haku epäonnistui. Vain latausaika voidaan laskea.';
+                PRICE_STATUS_ELEMENT.style.color = 'red';
+                sahkoHinnat = []; 
+            }
+        }
+
+
+        // ------------------------------------------------------------------
+        // FUNKTIO: Halvimman ajankohdan etsiminen 
+        // ------------------------------------------------------------------
+        function haeEdullisinLatausajankohta(tarvittavat_jaksot, hinnat, marginaali_snt) {
+            
+            if (tarvittavat_jaksot <= 0 || tarvittavat_jaksot > hinnat.length || hinnat.length < TOTAL_INTERVALS) {
+                return null;
+            }
+
+            let alinKokonaisHintaSumma = Infinity;
+            let optimaalinenAloitusJakso = -1;
+
+            for (let alkuJakso = 0; alkuJakso <= hinnat.length - tarvittavat_jaksot; alkuJakso++) {
+                let nykyinenKokonaisHintaSumma = 0;
+                
+                for (let i = 0; i < tarvittavat_jaksot; i++) {
+                    const jaksoIndeksi = alkuJakso + i;
+                    // LISÄÄ MARGINAALI HINTAAN ENNEN SUMMAUSTA
+                    const lopullinen_hinta = hinnat[jaksoIndeksi] + marginaali_snt; 
+                    nykyinenKokonaisHintaSumma += lopullinen_hinta;
+                }
+                
+                if (nykyinenKokonaisHintaSumma < alinKokonaisHintaSumma) {
+                    alinKokonaisHintaSumma = nykyinenKokonaisHintaSumma;
+                    optimaalinenAloitusJakso = alkuJakso;
+                }
+            }
+
+            if (optimaalinenAloitusJakso !== -1) {
+                const keskihinta_snt_kWh = alinKokonaisHintaSumma / tarvittavat_jaksot;
+                
+                const aloitusaika = new Date(0, 0, 0, Math.floor(optimaalinenAloitusJakso / INTERVALS_PER_HOUR), (optimaalinenAloitusJakso % INTERVALS_PER_HOUR) * INTERVAL_MINUTES);
+                const loppuaikaJakso = optimaalinenAloitusJakso + tarvittavat_jaksot;
+                const loppuaika = new Date(0, 0, 0, Math.floor(loppuaikaJakso / INTERVALS_PER_HOUR), (loppuaikaJakso % INTERVALS_PER_HOUR) * INTERVAL_MINUTES);
+                
+                const formatTime = (date) => date.toTimeString().slice(0, 5);
+                const aloitusaikaTeksti = `${formatTime(aloitusaika)} - ${formatTime(loppuaika)}`;
+                
+                return {
+                    aloitusaika: aloitusaikaTeksti,
+                    keskihinta_snt_kWh: keskihinta_snt_kWh
+                };
+            }
+
+            return null;
+        }
+
+        // ------------------------------------------------------------------
+        // PÄÄFUNKTIO: Latausajan ja Kustannuksen laskenta
+        // ------------------------------------------------------------------
+        function calculateChargingTime() {
+            
+            const chargeElement = document.getElementById("charge");
+            const targetElement = document.getElementById("target");
+            const marginElement = document.getElementById("margin");
+            
+            const remainingCharge = parseFloat(chargeElement.value);
+            const targetCharge = parseFloat(targetElement.value || 80);
+            const marginValue = parseFloat(marginElement.value || 0);
+            
+            if (isNaN(remainingCharge) || isNaN(targetCharge) || (targetCharge - remainingCharge) <= 0 || remainingCharge < 0 || targetCharge > 100 || isNaN(marginValue) || marginValue < 0) {
+                const virheHTML = `<div class="result-title">Virhe</div>Tarkista latausprosentit ja marginaali.`;
+                document.getElementById("result_etron").innerHTML = virheHTML;
+                document.getElementById("result_id4").innerHTML = virheHTML;
+                return;
+            }
+            
+            saveValues(remainingCharge, targetCharge, marginValue);
+
+            for (const [key, car] of Object.entries(CAR_MODELS)) {
+                
+                // Tarvittava energiamäärä kWh: Tarvitaan kustannuksen laskentaan
+                const remainingCapacity_kWh = car.capacity * ((targetCharge - remainingCharge) / 100);
+                
+                // Aika: Lasketaan latausteholla 10.8 kW
+                const timeInHours = remainingCapacity_kWh / chargingPower;
+
+                const hours = Math.floor(timeInHours);
+                const minutes = Math.round((timeInHours - hours) * 60);
+                
+                const timeInMinutes = timeInHours * 60;
+                const tarvittavat_jaksot = Math.ceil(timeInMinutes / INTERVAL_MINUTES); 
+                
+                let tulosHTML = `
+                    <div class="result-title">${car.name} (${car.capacity} kWh)</div>
+                    <div class="result-detail">Tarvittava latausaika: ${hours} h ${minutes} min (Latausteho ${chargingPower.toFixed(1)} kW)</div>
+                `;
+
+                if (sahkoHinnat.length >= TOTAL_INTERVALS) {
+                    
+                    if (tarvittavat_jaksot > TOTAL_INTERVALS) {
+                         tulosHTML += `<div class="result-detail warning">Latausaika (${tarvittavat_jaksot} jaksoa) on liian pitkä (yli 24 h) optimointiin.</div>`;
+                    } else {
+
+                        const edullisinAjankohtaTulos = haeEdullisinLatausajankohta(tarvittavat_jaksot, sahkoHinnat, marginValue);
+                        
+                        if (edullisinAjankohtaTulos) {
+                            const optimaalinenKeskihinta = edullisinAjankohtaTulos.keskihinta_snt_kWh;
+                            
+                            // Kustannuslaskenta perustuu vain Keskihintaan ja Energiaan (remainingCapacity_kWh), 
+                            // EI 1 kW:n oletukseen tai lataustehoon.
+                            const optimaalinenKokonaisKustannus_eur = (optimaalinenKeskihinta * remainingCapacity_kWh) / 100;
+                            
+                            tulosHTML += `
+                                <div class="result-detail optimized">Edullisin ajankohta: ${edullisinAjankohtaTulos.aloitusaika}</div>
+                                <div class="result-detail optimized">Optimaalinen kustannus: ${optimaalinenKokonaisKustannus_eur.toFixed(2)} € (Keskihinta ${optimaalinenKeskihinta.toFixed(2)} snt/kWh, sis. ${marginValue.toFixed(2)} snt/kWh marginaalin)</div>
+                            `;
+                        } else {
+                            tulosHTML += `<div class="result-detail warning">Optimointi epäonnistui (Jakson haku palautti nullin).</div>`;
+                        }
+                    }
+                } else {
+                    tulosHTML += `<div class="result-detail warning">Hinta-analyysiä ei voitu suorittaa (Hintoja ei saatavilla).</div>`;
+                }
+
+                document.getElementById(`result_${key}`).innerHTML = tulosHTML;
+            }
+        }
+
+        // ------------------------------------------------------------------
+        // ALUSTUS
+        // ------------------------------------------------------------------
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSavedValues(); 
+            fetchPrices();
+        });
     </script>
 </body>
 </html>
