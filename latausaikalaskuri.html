@@ -94,7 +94,7 @@
             etron: { name: "Audi e-tron", capacity: 95 }, 
             id4: { name: "VW ID.4", capacity: 77 }       
         };
-        const chargingPower = 10.8; // PALAUTETTU: Latausteho 10.8 kW
+        const chargingPower = 10.8; 
         const INTERVAL_MINUTES = 15; 
         const INTERVALS_PER_HOUR = 60 / INTERVAL_MINUTES; 
         const TOTAL_INTERVALS = 24 * INTERVALS_PER_HOUR; 
@@ -136,7 +136,7 @@
         }
 
         // ------------------------------------------------------------------
-        // FUNKTIO: Hintojen Haku
+        // FUNKTIO: Hintojen Haku (PÄIVITETTY TILAVIESTI)
         // ------------------------------------------------------------------
         async function fetchPrices() {
             const API_URL = 'https://api.spot-hinta.fi/Today'; 
@@ -151,14 +151,32 @@
                 
                 if (Array.isArray(data) && data.length >= TOTAL_INTERVALS) {
                     
-                    // Otetaan PriceWithTax (€/kWh) JA MUUNNETAAN SENTTEIHIN (x 100).
-                    sahkoHinnat = data.map(item => parseFloat(item.PriceWithTax) * 100).slice(0, TOTAL_INTERVALS); 
+                    const limitedData = data.slice(0, TOTAL_INTERVALS);
+                    
+                    const lastDataPoint = limitedData[limitedData.length - 1];
+                    const rawDateTime = lastDataPoint.DateTime;
+                    
+                    sahkoHinnat = limitedData.map(item => parseFloat(item.PriceWithTax) * 100); 
                     
                     if (sahkoHinnat.some(isNaN)) {
                          throw new Error("API palautti virheellisiä hintatietoja.");
                     }
                     
-                    PRICE_STATUS_ELEMENT.innerText = `✅ Pörssihinnat ladattu ${sahkoHinnat.length} jaksolta.`;
+                    // --- UUSI PÄIVÄMÄÄRÄN JA KELLONAJAN MUOTOILU ---
+                    const timeOptions = { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Europe/Helsinki' };
+                    const dateOptions = { year: 'numeric', month: 'numeric', day: 'numeric', timeZone: 'Europe/Helsinki' };
+                    
+                    // Alkuperäinen DateTime (viimeisen jakson alku)
+                    const lastDateTime = new Date(rawDateTime);
+                    
+                    // Lisätään 15 minuuttia, jotta saadaan viimeisen jakson päättymisaika (klo 24:00)
+                    lastDateTime.setMinutes(lastDateTime.getMinutes() + 15);
+                    
+                    // Muotoillaan päivämäärä ja kellonaika
+                    const dateString = lastDateTime.toLocaleDateString('fi-FI', dateOptions);
+                    const timeString = lastDateTime.toLocaleTimeString('fi-FI', timeOptions);
+                    
+                    PRICE_STATUS_ELEMENT.innerText = `✅ Hinnat ladattu ${dateString} klo ${timeString} asti.`;
                     PRICE_STATUS_ELEMENT.style.color = 'green';
                     
                 } else {
@@ -190,7 +208,6 @@
                 
                 for (let i = 0; i < tarvittavat_jaksot; i++) {
                     const jaksoIndeksi = alkuJakso + i;
-                    // LISÄÄ MARGINAALI HINTAAN ENNEN SUMMAUSTA
                     const lopullinen_hinta = hinnat[jaksoIndeksi] + marginaali_snt; 
                     nykyinenKokonaisHintaSumma += lopullinen_hinta;
                 }
@@ -244,10 +261,7 @@
 
             for (const [key, car] of Object.entries(CAR_MODELS)) {
                 
-                // Tarvittava energiamäärä kWh: Tarvitaan kustannuksen laskentaan
                 const remainingCapacity_kWh = car.capacity * ((targetCharge - remainingCharge) / 100);
-                
-                // Aika: Lasketaan latausteholla 10.8 kW
                 const timeInHours = remainingCapacity_kWh / chargingPower;
 
                 const hours = Math.floor(timeInHours);
@@ -271,9 +285,6 @@
                         
                         if (edullisinAjankohtaTulos) {
                             const optimaalinenKeskihinta = edullisinAjankohtaTulos.keskihinta_snt_kWh;
-                            
-                            // Kustannuslaskenta perustuu vain Keskihintaan ja Energiaan (remainingCapacity_kWh), 
-                            // EI 1 kW:n oletukseen tai lataustehoon.
                             const optimaalinenKokonaisKustannus_eur = (optimaalinenKeskihinta * remainingCapacity_kWh) / 100;
                             
                             tulosHTML += `
