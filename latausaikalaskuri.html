@@ -97,7 +97,7 @@
         const chargingPower = 10.8; 
         const INTERVAL_MINUTES = 15; 
         const INTERVALS_PER_HOUR = 60 / INTERVAL_MINUTES; 
-        const TOTAL_INTERVALS = 24 * INTERVALS_PER_HOUR; 
+        const FIXED_INTERVALS = 24 * INTERVALS_PER_HOUR; // 96 jaksoa päivässä
 
         // ------------------------------------------------------------------
         // LOCAL STORAGE: TALLENNUS
@@ -136,57 +136,78 @@
         }
 
         // ------------------------------------------------------------------
-        // FUNKTIO: Hintojen Haku (PÄIVITETTY TILAVIESTI)
+        // FUNKTIO: Hintojen Haku (Käyttää /Today ja /DayForward)
         // ------------------------------------------------------------------
         async function fetchPrices() {
-            const API_URL = 'https://api.spot-hinta.fi/Today'; 
             
             PRICE_STATUS_ELEMENT.innerText = 'Ladataan hintoja... ⏳';
+            let allData = [];
+            let lastDateTimeRaw = null;
+
             try {
-                const response = await fetch(API_URL);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const data = await response.json();
+                // 1. HAKU: /Today (Tämän päivän hinnat)
+                let responseToday = await fetch('https://api.spot-hinta.fi/Today');
+                if (!responseToday.ok) throw new Error(`HTTP error! status: ${responseToday.status} (/Today)`);
+                let dataToday = await responseToday.json();
                 
-                if (Array.isArray(data) && data.length >= TOTAL_INTERVALS) {
-                    
-                    const limitedData = data.slice(0, TOTAL_INTERVALS);
-                    
-                    const lastDataPoint = limitedData[limitedData.length - 1];
-                    const rawDateTime = lastDataPoint.DateTime;
-                    
-                    sahkoHinnat = limitedData.map(item => parseFloat(item.PriceWithTax) * 100); 
-                    
-                    if (sahkoHinnat.some(isNaN)) {
-                         throw new Error("API palautti virheellisiä hintatietoja.");
-                    }
-                    
-                    // --- UUSI PÄIVÄMÄÄRÄN JA KELLONAJAN MUOTOILU ---
-                    const timeOptions = { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Europe/Helsinki' };
-                    const dateOptions = { year: 'numeric', month: 'numeric', day: 'numeric', timeZone: 'Europe/Helsinki' };
-                    
-                    // Alkuperäinen DateTime (viimeisen jakson alku)
-                    const lastDateTime = new Date(rawDateTime);
-                    
-                    // Lisätään 15 minuuttia, jotta saadaan viimeisen jakson päättymisaika (klo 24:00)
-                    lastDateTime.setMinutes(lastDateTime.getMinutes() + 15);
-                    
-                    // Muotoillaan päivämäärä ja kellonaika
-                    const dateString = lastDateTime.toLocaleDateString('fi-FI', dateOptions);
-                    const timeString = lastDateTime.toLocaleTimeString('fi-FI', timeOptions);
-                    
-                    PRICE_STATUS_ELEMENT.innerText = `✅ Hinnat ladattu ${dateString} klo ${timeString} asti.`;
-                    PRICE_STATUS_ELEMENT.style.color = 'green';
-                    
+                if (Array.isArray(dataToday) && dataToday.length >= FIXED_INTERVALS) {
+                    // Otetaan vain 24h jakso Today-datasta
+                    allData = dataToday.slice(0, FIXED_INTERVALS);
+                    lastDateTimeRaw = allData[allData.length - 1].DateTime;
                 } else {
-                    throw new Error(`Ladatussa datassa ei ollut tarvittavaa määrää jaksoja (${TOTAL_INTERVALS}).`);
+                    throw new Error("Ladatussa /Today-datassa ei ollut riittävästi jaksoja.");
                 }
+                
+                // 2. HAKU: /DayForward (Seuraavan päivän hinnat)
+                // Jos DayForward ei ole saatavilla (esim. ennen klo 15), se heittää virheen ja käytetään vain Today-dataa
+                
+                let responseDayForward = await fetch('https://api.spot-hinta.fi/DayForward');
+                if (responseDayForward.ok) {
+                    let dataDayForward = await responseDayForward.json();
+                    
+                    if (Array.isArray(dataDayForward) && dataDayForward.length >= FIXED_INTERVALS) {
+                         // Otetaan vain 24h jakso DayForward-datasta ja yhdistetään Today-dataan
+                        allData = allData.concat(dataDayForward.slice(0, FIXED_INTERVALS));
+                        lastDateTimeRaw = dataDayForward.slice(0, FIXED_INTERVALS)[FIXED_INTERVALS - 1].DateTime;
+                    } 
+                    // Jos DayForward palauttaa OK mutta datassa ei ole 96 jaksoa, käytetään vain allData (eli Today)
+                    
+                } // Jos DayForward ei palauta OK (esim. 404 tai 500), käytetään vain allData (eli Today)
+                
+                
+                // --- Käsittely ---
+                sahkoHinnat = allData.map(item => parseFloat(item.PriceWithTax) * 100); 
+                
+                if (sahkoHinnat.some(isNaN)) {
+                     throw new Error("API palautti virheellisiä hintatietoja.");
+                }
+                
+                // --- PÄIVÄMÄÄRÄN JA KELLONAJAN MUOTOILU ---
+                const timeOptions = { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Europe/Helsinki' };
+                const dateOptions = { year: 'numeric', month: 'numeric', day: 'numeric', timeZone: 'Europe/Helsinki' };
+                
+                const lastDateTime = new Date(lastDateTimeRaw);
+                // Lisätään 15 minuuttia, jotta saadaan viimeisen jakson päättymisaika (esim. klo 24:00)
+                lastDateTime.setMinutes(lastDateTime.getMinutes() + 15);
+                
+                const dateString = lastDateTime.toLocaleDateString('fi-FI', dateOptions);
+                const timeString = lastDateTime.toLocaleTimeString('fi-FI', timeOptions);
+                
+                PRICE_STATUS_ELEMENT.innerText = `✅ Hinnat ladattu ${dateString} klo ${timeString} asti. (${sahkoHinnat.length} jaksoa)`;
+                PRICE_STATUS_ELEMENT.style.color = 'green';
+                
             } catch (error) {
                 console.error("Hintojen haku epäonnistui:", error);
-                PRICE_STATUS_ELEMENT.innerText = '❌ Hintojen haku epäonnistui. Vain latausaika voidaan laskea.';
-                PRICE_STATUS_ELEMENT.style.color = 'red';
-                sahkoHinnat = []; 
+                
+                // Tarkistetaan, saatiinko vähintään Today-data (FIXED_INTERVALS)
+                if (sahkoHinnat.length >= FIXED_INTERVALS) {
+                    PRICE_STATUS_ELEMENT.innerText = `⚠️ Ladattu vain tämän päivän hinnat (${FIXED_INTERVALS} jaksoa).`;
+                    PRICE_STATUS_ELEMENT.style.color = 'orange';
+                } else {
+                    PRICE_STATUS_ELEMENT.innerText = '❌ Hintojen haku epäonnistui kokonaan. Vain latausaika lasketaan.';
+                    PRICE_STATUS_ELEMENT.style.color = 'red';
+                    sahkoHinnat = []; 
+                }
             }
         }
 
@@ -196,7 +217,7 @@
         // ------------------------------------------------------------------
         function haeEdullisinLatausajankohta(tarvittavat_jaksot, hinnat, marginaali_snt) {
             
-            if (tarvittavat_jaksot <= 0 || tarvittavat_jaksot > hinnat.length || hinnat.length < TOTAL_INTERVALS) {
+            if (tarvittavat_jaksot <= 0 || tarvittavat_jaksot > hinnat.length) {
                 return null;
             }
 
@@ -221,6 +242,7 @@
             if (optimaalinenAloitusJakso !== -1) {
                 const keskihinta_snt_kWh = alinKokonaisHintaSumma / tarvittavat_jaksot;
                 
+                // HUOM: Tässä lasketaan aika jaksojen perusteella, koska data voi olla yli 24h
                 const aloitusaika = new Date(0, 0, 0, Math.floor(optimaalinenAloitusJakso / INTERVALS_PER_HOUR), (optimaalinenAloitusJakso % INTERVALS_PER_HOUR) * INTERVAL_MINUTES);
                 const loppuaikaJakso = optimaalinenAloitusJakso + tarvittavat_jaksot;
                 const loppuaika = new Date(0, 0, 0, Math.floor(loppuaikaJakso / INTERVALS_PER_HOUR), (loppuaikaJakso % INTERVALS_PER_HOUR) * INTERVAL_MINUTES);
@@ -275,12 +297,12 @@
                     <div class="result-detail">Tarvittava latausaika: ${hours} h ${minutes} min (Latausteho ${chargingPower.toFixed(1)} kW)</div>
                 `;
 
-                if (sahkoHinnat.length >= TOTAL_INTERVALS) {
+                if (sahkoHinnat.length >= FIXED_INTERVALS) { 
                     
-                    if (tarvittavat_jaksot > TOTAL_INTERVALS) {
-                         tulosHTML += `<div class="result-detail warning">Latausaika (${tarvittavat_jaksot} jaksoa) on liian pitkä (yli 24 h) optimointiin.</div>`;
+                    if (tarvittavat_jaksot > sahkoHinnat.length) { 
+                         tulosHTML += `<div class="result-detail warning">Latausaika (${hours} h ${minutes} min) on pidempi kuin saatavilla oleva hintaennuste (${sahkoHinnat.length} jaksoa). Optimointi on epätäydellinen.</div>`;
                     } else {
-
+                    
                         const edullisinAjankohtaTulos = haeEdullisinLatausajankohta(tarvittavat_jaksot, sahkoHinnat, marginValue);
                         
                         if (edullisinAjankohtaTulos) {
