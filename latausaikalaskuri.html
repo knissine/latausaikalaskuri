@@ -10,232 +10,241 @@
             --font-size-medium: 2rem;
             --font-size-large: 2.5rem;
             --primary-blue: #007bff;
-            --dark-blue: #0056b3;
-            --danger-red: #dc3545;
         }
-
-        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.3; color: #333; max-width: 800px; margin-left: auto; margin-right: auto; }
-        h2 { font-size: var(--font-size-large); color: var(--primary-blue); margin-bottom: 10px; }
-        .input-group { margin-bottom: 20px; }
-        label { font-size: var(--font-size-small); display: block; margin-bottom: 8px; font-weight: bold; }
-        input, select { font-size: var(--font-size-small); padding: 12px; width: 100%; box-sizing: border-box; border: 2px solid #ccc; border-radius: 8px; background: white; }
-        
-        button {
-            font-size: var(--font-size-small); background-color: var(--primary-blue);
-            color: white; border: none; border-radius: 8px; padding: 18px; width: 100%; cursor: pointer; font-weight: bold; margin-top: 10px;
-        }
-
-        .car-management {
-            background: #f0f4f8; padding: 15px; border-radius: 12px; margin-bottom: 30px; border: 1px solid #d1d9e0;
-        }
-
-        .result-car { border: 3px solid #eee; padding: 20px; margin-top: 25px; border-radius: 12px; background-color: #fcfcfc; }
-        .result-title { font-size: var(--font-size-medium); font-weight: bold; color: var(--dark-blue); margin-bottom: 10px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
-        .result-detail { font-size: var(--font-size-small); margin-bottom: 8px; }
-        .optimized { color: #28a745; font-weight: bold; }
-        .status-box { font-size: 1.2rem; margin-top: 5px; margin-bottom: 20px; font-weight: bold; padding: 10px; border-radius: 8px; }
-        .help-text { font-size: 1rem; color: #666; margin-top: 5px; }
-        .flex-row { display: flex; gap: 10px; margin-top: 10px; }
-        .secondary-btn { background-color: #6c757d; font-size: 1.1rem; padding: 12px; }
-        .delete-btn { background-color: var(--danger-red); font-size: 1.1rem; padding: 12px; width: auto; margin-top: 5px; }
+        body { font-family: Arial, sans-serif; margin: 20px; max-width: 800px; margin-left: auto; margin-right: auto; line-height: 1.3; }
+        h2 { font-size: var(--font-size-large); color: var(--primary-blue); margin-bottom: 20px; }
+        .input-group { margin-bottom: 15px; }
+        label { font-size: var(--font-size-small); display: block; font-weight: bold; margin-bottom: 5px; }
+        input, select { font-size: var(--font-size-small); padding: 12px; width: 100%; border: 2px solid #ccc; border-radius: 8px; box-sizing: border-box; }
+        button { font-size: var(--font-size-small); background-color: var(--primary-blue); color: white; border: none; border-radius: 8px; padding: 20px; width: 100%; cursor: pointer; font-weight: bold; margin-top: 15px; }
+        .car-management { background: #f8f9fa; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #ddd; }
+        .result-car { border: 4px solid #28a745; padding: 20px; margin-top: 25px; border-radius: 12px; background-color: #f0fff4; }
+        .status-box { font-size: 1.1rem; padding: 10px; border-radius: 8px; margin-bottom: 20px; background: #eee; font-weight: bold; }
+        .flex-row { display: flex; gap: 10px; margin-top: 5px; }
+        .small-btn { font-size: 1rem; padding: 8px; background: #6c757d; width: auto; margin: 0; }
     </style>
 </head>
 <body>
 
     <h2>Latausaikalaskuri</h2>
-    <div id="price_status" class="status-box" style="background: #eee;">Ladataan hintoja... ⏳</div>
+    <div id="price_status" class="status-box">Ladataan hintoja...</div>
 
     <div class="car-management">
-        <label for="car_select">Valitse auto:</label>
-        <select id="car_select" onchange="saveAll()"></select>
-        <button onclick="deleteCar()" class="delete-btn">Poista valittu</button>
-        
-        <hr style="margin: 20px 0; border: 0; border-top: 1px solid #ccc;">
-        
-        <label style="font-size: 1.2rem;">Lisää uusi auto:</label>
-        <input type="text" id="new_car_name" placeholder="Nimi">
+        <label>Auto:</label>
         <div class="flex-row">
-            <input type="text" id="new_car_cap" placeholder="Akku kWh">
-            <input type="text" id="new_car_power" placeholder="Lataus kW">
+            <select id="car_select" onchange="saveAll()" style="flex:2"></select>
+            <button onclick="deleteCar()" class="small-btn" style="background:#dc3545">Poista</button>
         </div>
-        <button onclick="addCar()" class="secondary-btn">Tallenna auto listaan</button>
-    </div>
-
-    <div class="input-group">
-        <label for="charge">Akun nykytila (%):</label>
-        <input type="text" id="charge" placeholder="Esim. 20">
-    </div>
-
-    <div class="input-group">
-        <label for="target">Tavoitetaso (%):</label>
-        <input type="text" id="target" value="80">
-    </div>
-
-    <div class="input-group">
-        <label>Aikaikkuna (Alkaen - Päättyen):</label>
-        <div class="flex-row">
-            <input type="text" id="start_time" value="00:00" maxlength="5">
-            <input type="text" id="end_time" value="23:59" maxlength="5">
+        <div class="flex-row" style="margin-top:10px">
+            <input type="text" id="new_car_name" placeholder="Nimi" style="flex:2">
+            <input type="number" id="new_car_cap" placeholder="kWh" style="flex:1">
+            <input type="number" id="new_car_power" placeholder="kW" style="flex:1">
+            <button onclick="addCar()" class="small-btn">Lisää</button>
         </div>
     </div>
 
-    <div class="input-group" style="background: #fff3cd; padding: 15px; border-radius: 8px; border: 1px solid #ffeeba;">
-        <label>Maksut (snt/kWh):</label>
-        <div class="flex-row">
-            <div style="flex:1">
-                <span class="help-text">Marginaali</span>
-                <input type="text" id="margin" value="0,30">
-            </div>
-            <div style="flex:1">
-                <span class="help-text">Siirto + vero</span>
-                <input type="text" id="transfer" value="4,50">
-            </div>
+    <div class="flex-row">
+        <div class="input-group" style="flex:1">
+            <label>Akku nyt %</label>
+            <input type="number" id="charge" value="20">
+        </div>
+        <div class="input-group" style="flex:1">
+            <label>Tavoite %</label>
+            <input type="number" id="target" value="80">
         </div>
     </div>
 
-    <button onclick="calculate()">Laske edullisin latausaika</button>
+    <div class="input-group">
+        <label>Latausikkuna ALKAA:</label>
+        <div class="flex-row">
+            <select id="start_day" style="flex:1">
+                <option value="0" selected>Tänään</option>
+                <option value="1">Huomenna</option>
+            </select>
+            <input type="text" id="start_time" value="00:00" style="flex:1">
+        </div>
+    </div>
+
+    <div class="input-group">
+        <label>Latausikkuna PÄÄTTYY:</label>
+        <div class="flex-row">
+            <select id="end_day" style="flex:1">
+                <option value="0">Tänään</option>
+                <option value="1" selected>Huomenna</option>
+            </select>
+            <input type="text" id="end_time" value="23:59" style="flex:1">
+        </div>
+    </div>
+
+    <div class="input-group" style="background:#fff3cd; padding:10px; border-radius:8px">
+        <label>Siirto + Marginaali (snt/kWh):</label>
+        <input type="number" id="extra_cost" value="4.89" step="0.01">
+    </div>
+
+    <button onclick="calculate()">LASKE EDULLISIN AIKA</button>
 
     <div id="result" class="result-car" style="display:none;"></div>
 
     <script>
         let sahkoHinnat = [];
-        const defaultCars = [
-            { name: "Audi e-tron", capacity: 95, power: 10.8 },
-            { name: "VW ID.4", capacity: 77, power: 10.8 }
-        ];
-
+        const defaultCars = [{ name: "Audi e-tron", capacity: 95, power: 10.8 }];
         let cars = JSON.parse(localStorage.getItem('my_cars')) || defaultCars;
-        const numFI = new Intl.NumberFormat('fi-FI', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const kwhFI = new Intl.NumberFormat('fi-FI', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-        const timeOptions = { hour: '2-digit', minute: '2-digit', hour12: false };
 
-        function parseFiFloat(val) { return parseFloat(String(val).replace(',', '.')); }
-        function naytaPilkulla(val) { return String(val).replace('.', ','); }
-
-        // Päivitetty lista näyttämään myös kW
-        function renderCarSelect() {
-            const select = document.getElementById('car_select');
-            const savedIdx = localStorage.getItem('selected_car_idx') || 0;
-            select.innerHTML = cars.map((c, i) => 
-                `<option value="${i}" ${i == savedIdx ? 'selected' : ''}>${c.name} (${c.capacity} kWh / ${naytaPilkulla(c.power)} kW)</option>`
-            ).join('');
-            localStorage.setItem('my_cars', JSON.stringify(cars));
-        }
-
-        function addCar() {
-            const name = document.getElementById('new_car_name').value;
-            const cap = parseFiFloat(document.getElementById('new_car_cap').value);
-            const pwr = parseFiFloat(document.getElementById('new_car_power').value);
-            if (name && !isNaN(cap) && !isNaN(pwr)) {
-                cars.push({ name, capacity: cap, power: pwr });
-                renderCarSelect();
-                saveAll();
-                document.getElementById('new_car_name').value = "";
-                document.getElementById('new_car_cap').value = "";
-                document.getElementById('new_car_power').value = "";
-            }
-        }
-
-        function deleteCar() {
-            if (cars.length <= 1) return;
-            const idx = document.getElementById('car_select').value;
-            if (confirm(`Poistetaanko ${cars[idx].name}?`)) {
-                cars.splice(idx, 1);
-                renderCarSelect();
-                saveAll();
-            }
-        }
-
-        function saveAll() {
-            localStorage.setItem('selected_car_idx', document.getElementById('car_select').value);
-            localStorage.setItem('ev_charge', document.getElementById('charge').value);
-            localStorage.setItem('ev_target', document.getElementById('target').value);
-            localStorage.setItem('ev_margin', document.getElementById('margin').value);
-            localStorage.setItem('ev_transfer', document.getElementById('transfer').value);
-            localStorage.setItem('ev_start', document.getElementById('start_time').value);
-            localStorage.setItem('ev_end', document.getElementById('end_time').value);
-        }
-
-        function loadAll() {
-            if(localStorage.getItem('ev_charge')) document.getElementById('charge').value = naytaPilkulla(localStorage.getItem('ev_charge'));
-            if(localStorage.getItem('ev_target')) document.getElementById('target').value = naytaPilkulla(localStorage.getItem('ev_target'));
-            if(localStorage.getItem('ev_margin')) document.getElementById('margin').value = naytaPilkulla(localStorage.getItem('ev_margin'));
-            if(localStorage.getItem('ev_transfer')) document.getElementById('transfer').value = naytaPilkulla(localStorage.getItem('ev_transfer'));
-            if(localStorage.getItem('ev_start')) document.getElementById('start_time').value = localStorage.getItem('ev_start');
-            if(localStorage.getItem('ev_end')) document.getElementById('end_time').value = localStorage.getItem('ev_end');
-        }
+        const fiNumber = new Intl.NumberFormat('fi-FI', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+        const fiPrice  = new Intl.NumberFormat('fi-FI', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
         async function fetchPrices() {
             const statusBox = document.getElementById('price_status');
             try {
-                let resT = await fetch('https://api.spot-hinta.fi/Today');
-                let dataT = await resT.json();
-                let resF = await fetch('https://api.spot-hinta.fi/DayForward');
-                let dataF = resF.ok ? await resF.json() : [];
-                let allData = dataT.concat(dataF);
-                const now = new Date();
-                sahkoHinnat = allData.map(item => ({ price: parseFloat(item.PriceWithTax) * 100, dateTime: new Date(item.DateTime) }))
-                                     .filter(item => item.dateTime >= now);
+                const [resT, resF] = await Promise.all([
+                    fetch('https://api.spot-hinta.fi/Today'),
+                    fetch('https://api.spot-hinta.fi/DayForward')
+                ]);
+                
+                const dataToday = await resT.json();
+                const dataForward = resF.ok ? await resF.json() : [];
+                const combinedData = dataToday.concat(dataForward);
+        
+                // Käytetään Map-oliota duplikaattien poistoon (DateTime on avain)
+                const uniquePrices = new Map();
+                
+                combinedData.forEach(item => {
+                    const time = new Date(item.DateTime).getTime();
+                    if (!uniquePrices.has(time)) {
+                        uniquePrices.set(time, {
+                            price: parseFloat(item.PriceWithTax) * 100,
+                            ts: time,
+                            date: new Date(item.DateTime)
+                        });
+                    }
+                });
+        
+                // Muutetaan takaisin taulukoksi ja LAJITELLAAN aikajärjestykseen
+                sahkoHinnat = Array.from(uniquePrices.values())
+                    .sort((a, b) => a.ts - b.ts);
+        
                 if (sahkoHinnat.length > 0) {
-                    const last = sahkoHinnat[sahkoHinnat.length-1].dateTime;
-                    const isTomorrow = last.getDate() !== now.getDate();
-                    statusBox.innerText = `Hinnat saatavilla: ${last.toLocaleDateString('fi-FI')} klo ${last.toLocaleTimeString('fi-FI', timeOptions)} asti.`;
-                    statusBox.style.background = isTomorrow ? "#d4edda" : "#f8d7da";
-                    statusBox.style.color = isTomorrow ? "#155724" : "#721c24";
+                    const last = sahkoHinnat[sahkoHinnat.length - 1].date;
+                    statusBox.innerText = `Hinnat ladattu: ${last.getDate()}.${last.getMonth() + 1}. klo ${last.getHours()}:${last.getMinutes().toString().padStart(2, '0')} asti.`;
+                    statusBox.style.background = "#d4edda";
                 }
-            } catch (e) { statusBox.innerText = "❌ Virhe hintojen haussa."; statusBox.style.background = "#f8d7da"; }
+            } catch (e) {
+                statusBox.innerText = "❌ Virhe hintojen latauksessa.";
+                statusBox.style.background = "#f8d7da";
+            }
         }
 
         function calculate() {
             saveAll();
             const car = cars[document.getElementById('car_select').value];
-            const charge = parseFiFloat(document.getElementById("charge").value) || 0;
-            const target = parseFiFloat(document.getElementById("target").value) || 0;
-            const margin = parseFiFloat(document.getElementById("margin").value) || 0;
-            const transfer = parseFiFloat(document.getElementById("transfer").value) || 0;
-            const [sH, sM] = document.getElementById("start_time").value.split(':').map(Number);
-            const [eH, eM] = document.getElementById("end_time").value.split(':').map(Number);
-            const startLimit = sH * 60 + sM;
-            const endLimit = eH * 60 + eM;
-
-            const filtered = sahkoHinnat.filter(item => {
-                const cur = item.dateTime.getHours() * 60 + item.dateTime.getMinutes();
-                return startLimit <= endLimit ? (cur >= startLimit && cur < endLimit) : (cur >= startLimit || cur < endLimit);
-            });
-
-            const energy = car.capacity * ((target - charge) / 100);
-            const intervals = Math.ceil((energy / car.power) * 4);
+            const energyNeeded = car.capacity * ((document.getElementById("target").value - document.getElementById("charge").value) / 100);
+            const extra = parseFloat(document.getElementById("extra_cost").value);
+            
+            // Kuinka monta 15min pätkää (ikkunan koko) tarvitaan?
+            const blocksNeeded = Math.ceil((energyNeeded / car.power) * 4);
+        
+            const now = new Date();
+            
+            // Muodostetaan hakuikkunan rajat (Unix-aikaleimat millisekunteina)
+            const getTs = (dayAdd, timeStr, isEnd) => {
+                const [h, m] = timeStr.split(':').map(Number);
+                const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + parseInt(dayAdd), h, m, 0, 0);
+                // Jos loppuaika on 23:59, laajennetaan se kattamaan koko viimeinen vartti (klo 00:00 asti)
+                if (isEnd && h === 23 && m === 59) d.setMinutes(60); 
+                return d.getTime();
+            };
+        
+            const startLimit = getTs(document.getElementById("start_day").value, document.getElementById("start_time").value, false);
+            const endLimit = getTs(document.getElementById("end_day").value, document.getElementById("end_time").value, true);
+        
+            // 1. POIMITAAN KAIKKI HINNAT VALITULTA VÄLILTÄ (Tämä on meidän "rata", jolla ikkuna liukuu)
+            const windowPrices = sahkoHinnat.filter(h => h.ts >= startLimit && h.ts < endLimit);
+        
             const resDiv = document.getElementById('result');
             resDiv.style.display = "block";
 
-            if (energy <= 0) { resDiv.innerHTML = "Tavoite saavutettu jo!"; return; }
-            if (intervals > filtered.length) {
-                resDiv.innerHTML = `<div style="color:red; font-weight:bold;">Ikkuna liian lyhyt! Tarvitaan ${Math.floor(intervals/4)}h ${intervals%4*15}min latausaikaa.</div>`;
+            if (windowPrices.length < blocksNeeded) {
+                resDiv.innerHTML = `<div style="color:red; font-weight:bold;">Aikaikkuna on liian lyhyt. Tarve ${fiNumber.format(blocksNeeded/4)} h.</div>`;
                 return;
             }
-
-            let bestSum = Infinity, bestIdx = -1;
-            for (let i = 0; i <= filtered.length - intervals; i++) {
-                let sum = 0;
-                for (let j = 0; j < intervals; j++) sum += filtered[i+j].price + margin + transfer;
-                if (sum < bestSum) { bestSum = sum; bestIdx = i; }
+        
+            // 2. SLIDING WINDOW -ALGORITMI
+            let minSum = Infinity;
+            let bestStartIndex = 0;
+        
+            // Liu'utetaan ikkunaa windowPrices-taulukon yli
+            for (let i = 0; i <= windowPrices.length - blocksNeeded; i++) {
+                let currentWindowSum = 0;
+                for (let j = 0; j < blocksNeeded; j++) {
+                    currentWindowSum += windowPrices[i + j].price + extra;
+                }
+        
+                if (currentWindowSum < minSum) {
+                    minSum = currentWindowSum;
+                    bestStartIndex = i;
+                }
             }
-
-            const s = filtered[bestIdx].dateTime;
-            const e = new Date(s.getTime() + intervals * 15 * 60000);
-            const avg = bestSum / intervals;
-
+        
+            // 3. TULOSTUS
+            const startData = windowPrices[bestStartIndex];
+            const startTime = startData.date;
+            const endTime = new Date(startTime.getTime() + blocksNeeded * 15 * 60000);
+            const avgPrice = minSum / blocksNeeded;
+        
+            resDiv.style.display = "block";
             resDiv.innerHTML = `
-                <div class="result-title">${car.name}</div>
-                <div class="result-detail">Ladattava: <strong>${kwhFI.format(energy)} kWh</strong> (${Math.floor(intervals/4)}h ${intervals%4*15}min)</div>
-                <div class="result-detail optimized">Edullisin latausväli:</div>
-                <div class="result-detail optimized" style="font-size: 2.2rem;">klo ${s.toLocaleTimeString('fi-FI', timeOptions)} - ${e.toLocaleTimeString('fi-FI', timeOptions)}</div>
-                <div class="result-detail">Kokonaiskustannus: <strong>${numFI.format(avg * energy / 100)} €</strong></div>
-                <div class="help-text">Keskiarvohinta sis. kulut: ${numFI.format(avg)} snt/kWh</div>
+                <div style="font-size:1.6rem; font-weight:bold">${car.name}</div>
+                <div style="margin: 10px 0;">Tarve: ${fiNumber.format(energyNeeded)} kWh (${fiNumber.format(blocksNeeded/4)} h)</div>
+                <div style="font-size:1.8rem; color:#28a745; font-weight:bold;">
+                    ${startTime.getDate()}.${startTime.getMonth()+1}. klo ${startTime.getHours()}:${startTime.getMinutes().toString().padStart(2,'0')} -<br>
+                    ${endTime.getDate()}.${endTime.getMonth()+1}. klo ${endTime.getHours()}:${endTime.getMinutes().toString().padStart(2,'0')}
+                </div>
+                <div style="margin-top:10px;">
+                    Hinta: <strong>${fiPrice.format(avgPrice * energyNeeded / 100)} €</strong> 
+                    <small>(${fiPrice.format(avgPrice)} snt/kWh)</small>
+                </div>
             `;
         }
 
-        window.onload = () => { renderCarSelect(); loadAll(); fetchPrices(); };
+        function addCar() {
+            const name = document.getElementById('new_car_name').value;
+            const cap = parseFloat(document.getElementById('new_car_cap').value);
+            const pwr = parseFloat(document.getElementById('new_car_power').value);
+            if (name && cap && pwr) {
+                cars.push({ name, capacity: cap, power: pwr });
+                localStorage.setItem('my_cars', JSON.stringify(cars));
+                renderCars();
+            }
+        }
+
+        function deleteCar() {
+            if (cars.length > 1) {
+                cars.splice(document.getElementById('car_select').value, 1);
+                localStorage.setItem('my_cars', JSON.stringify(cars));
+                renderCars();
+            }
+        }
+
+        function renderCars() {
+            const sel = document.getElementById('car_select');
+            const current = localStorage.getItem('selected_car_idx') || 0;
+            sel.innerHTML = cars.map((c, i) => `<option value="${i}" ${i==current?'selected':''}>${c.name} (${c.capacity}kWh)</option>`).join('');
+        }
+
+        function saveAll() {
+            localStorage.setItem('selected_car_idx', document.getElementById('car_select').value);
+            localStorage.setItem('charge', document.getElementById('charge').value);
+            localStorage.setItem('target', document.getElementById('target').value);
+            localStorage.setItem('extra', document.getElementById('extra_cost').value);
+        }
+
+        window.onload = () => {
+            if(localStorage.getItem('charge')) document.getElementById('charge').value = localStorage.getItem('charge');
+            if(localStorage.getItem('target')) document.getElementById('target').value = localStorage.getItem('target');
+            if(localStorage.getItem('extra')) document.getElementById('extra_cost').value = localStorage.getItem('extra');
+            renderCars();
+            fetchPrices();
+        };
     </script>
 </body>
 </html>
