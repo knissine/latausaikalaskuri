@@ -282,14 +282,15 @@
                 const s = filtered[bestIdx].dateTime;
                 const e = new Date(s.getTime() + intervals * 15 * 60000);
                 const avg = bestSum / intervals;
+                const spotAvg = avg - margin; // Lasketaan spot-osuus erikseen näkyviin jos tarpeen
 
                 resDiv.innerHTML = `
                     <div class="result-title">${car.name} (${car.capacity} kWh)</div>
                     <div class="result-detail">Tarve: <strong>${kwhFI.format(energy)} kWh</strong> (${Math.floor(intervals/4)}h ${intervals%4*15}min)</div>
-                    <div class="result-detail optimized">Edullisin: ${s.toLocaleDateString('fi-FI')} klo ${s.toLocaleTimeString('fi-FI', {hour:'2-digit', minute:'2-digit', hour12:false})} - ${e.toLocaleTimeString('fi-FI', {hour:'2-digit', minute:'2-digit', hour12:false})}</div>
-                    <div class="result-detail optimized">Kustannus: ${numFI.format(avg * energy / 100)} € (Ka. ${numFI.format(avg)} snt/kWh)</div>
-                `;
-            }
+                    <div class="result-detail optimized">Edullisin: klo ${s.toLocaleTimeString('fi-FI', {hour:'2-digit', minute:'2-digit', hour12:false})} - ${e.toLocaleTimeString('fi-FI', {hour:'2-digit', minute:'2-digit', hour12:false})}</div>
+                    <div class="result-detail optimized">Kustannus: ${numFI.format(avg * energy / 100)} €</div>
+                    <div class="help-text" style="font-size: 0.9rem;">(Keskihinta sis. marginaalin: ${numFI.format(avg)} snt/kWh)</div>
+                `;            }
         }
 
         window.onload = () => { 
