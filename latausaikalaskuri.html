@@ -136,7 +136,9 @@
 
     <script>
         let sahkoHinnat = [];
-        const defaultCars = [{ name: "Audi e-tron", capacity: 95 }];
+        const defaultCars = [
+            { name: "Audi e-tron", capacity: 95 }, { name: "VW ID.4", capacity: 77 }
+        ];
         let cars = JSON.parse(localStorage.getItem('my_cars')) || defaultCars;
 
         const fiNumber = new Intl.NumberFormat('fi-FI', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
