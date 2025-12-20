@@ -201,6 +201,18 @@
             const resDiv = document.getElementById('result');
             resDiv.style.display = "block";
             resDiv.innerHTML = `<div style="color:red; font-weight:bold;">${msg}</div>`;
+
+            // sulje mahdollinen fokus ja skrollaa virheen kohdalta näkyviin mobiilissa
+            if (document.activeElement && typeof document.activeElement.blur === 'function') {
+                document.activeElement.blur();
+            }
+            setTimeout(() => {
+                if (typeof resDiv.scrollIntoView === 'function') {
+                    resDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                } else {
+                    window.scrollTo({ top: resDiv.offsetTop - 20, behavior: 'smooth' });
+                }
+            }, 100);
         }
 
         function calculate() {
@@ -231,7 +243,16 @@
             let extra = parseLocalizedNumber(document.getElementById("extra_cost").value);
             if (!isFinite(extra)) extra = 0;
 
-            const blocksNeeded = Math.ceil((energyNeeded / chargingPower) * 4);
+                                                   
+            const totalHoursExact = energyNeeded / chargingPower; // tuntia desimaalina
+
+            if (!isFinite(totalHoursExact) || totalHoursExact <= 0) {
+                showResultError("Laskettava energiantarve on 0 tai virheellinen (tarkista prosentit).");
+                return;
+            }
+
+                                                                                                                            
+            const blocksNeeded = Math.ceil(totalHoursExact * 4);
 
             const now = new Date();
             const getTs = (dayAdd, timeStr, isEnd) => {
@@ -244,8 +265,12 @@
             const startLimit = getTs(document.getElementById("start_day").value, document.getElementById("start_time").value, false);
             const endLimit = getTs(document.getElementById("end_day").value, document.getElementById("end_time").value, true);
 
+            // Rajataan myös nykyhetkeen: ei oteta mukaan menneisyyden hintoja
+            const nowTs = now.getTime();
+            const adjustedStart = Math.max(startLimit, nowTs);
+
             let windowPrices = sahkoHinnat
-                .filter(h => h.ts >= startLimit && h.ts < endLimit)
+                .filter(h => h.ts >= adjustedStart && h.ts < endLimit)
                 .map(p => ({ price: Number(p.price) || 0, ts: p.ts, date: p.date }));
 
             if (windowPrices.length < blocksNeeded) {
@@ -291,6 +316,12 @@
             const avgFormatter = new Intl.NumberFormat('fi-FI', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
             const avgDisplay = avgFormatter.format(avgPrice);
 
+            const totalMinutes = Math.round(totalHoursExact * 60); // tai Math.ceil(...) jos haluat varman yliarvioinnin
+            const hours = Math.floor(totalMinutes / 60);
+            const minutes = totalMinutes % 60;
+            const minutesStr = minutes.toString().padStart(2, '0');
+            const timeStr = hours > 0 ? `${hours} h ${minutesStr} min` : `${minutes} min`;
+
             const startData = windowPrices[bestStartIndex];
             const startTime = startData.date;
             const endTime = new Date(startTime.getTime() + blocksNeeded * 15 * 60000);
@@ -300,7 +331,7 @@
             resDiv.style.display = "block";
             resDiv.innerHTML = `
                 <div style="font-size:1.6rem; font-weight:bold">${car.name}</div>
-                <div style="margin: 10px 0;">Tarve: ${fiNumber.format(energyNeeded)} kWh (${fiNumber.format(blocksNeeded/4)} h)</div>
+                <div style="margin: 10px 0;">Tarve: ${fiNumber.format(energyNeeded)} kWh (${timeStr})</div>
                 <div style="font-size:1.1rem; margin-bottom:6px;">Latausteho: <strong>${chargingPowerDisplay} kW</strong></div>
                 <div style="font-size:1.8rem; color:#28a745; font-weight:bold;">
                     ${startTime.getDate()}.${startTime.getMonth()+1}. klo ${startTime.getHours()}:${startTime.getMinutes().toString().padStart(2,'0')} -<br>
@@ -311,6 +342,20 @@
                     <small>(${avgDisplay} snt/kWh)</small>
                 </div>
             `;
+
+            // Sulje mahdollinen kenttäfokus (poistaa mobiilin näppäimistön)
+            if (document.activeElement && typeof document.activeElement.blur === 'function') {
+                document.activeElement.blur();
+            }
+
+            // Odota hetki että UI päivittyy / näppäimistö häviää, sitten skrollaa tulokseen
+            setTimeout(() => {
+                if (typeof resDiv.scrollIntoView === 'function') {
+                    resDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                } else {
+                    window.scrollTo({ top: resDiv.offsetTop - 20, behavior: 'smooth' });
+                }
+            }, 120);
         }
 
         function addCarInternal(name, capacity) {
