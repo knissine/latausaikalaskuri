@@ -57,7 +57,31 @@
 </head>
 <body>
 
+    <div
+        id="settings-icon"
+        onclick="toggleSettings()"
+        style="position: fixed; top: 10px; right: 10px; font-size: 24px; cursor: pointer; z-index: 1001;">
+    ⚙️
+    </div>
+
     <h2>Latausaikalaskuri</h2>
+
+    <div id="settings-menu" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 1000; padding: 20px; box-sizing: border-box;">
+        <h2>Asetukset</h2>
+        <hr>
+
+        <div style="margin: 20px 0;">
+            <p>Täällä voit nollata sovelluksen tallentamat tiedot.</p>
+            <button onclick="nollaaAsetukset()" style="background-color: #f44336; color: white; padding: 10px; width: 100%; border: none; border-radius: 5px;">
+                Tyhjennä tallennetut asetukset
+            </button>
+        </div>
+
+        <button onclick="toggleSettings()" style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); padding: 10px 20px;">
+            Sulje valikko
+        </button>
+    </div>
+
     <div id="price_status" class="status-box">Ladataan hintoja...</div>
 
     <div class="car-management">
@@ -243,7 +267,6 @@
             let extra = parseLocalizedNumber(document.getElementById("extra_cost").value);
             if (!isFinite(extra)) extra = 0;
 
-                                                   
             const totalHoursExact = energyNeeded / chargingPower; // tuntia desimaalina
 
             if (!isFinite(totalHoursExact) || totalHoursExact <= 0) {
@@ -251,7 +274,6 @@
                 return;
             }
 
-                                                                                                                            
             const blocksNeeded = Math.ceil(totalHoursExact * 4);
 
             const now = new Date();
@@ -338,7 +360,7 @@
                     ${endTime.getDate()}.${endTime.getMonth()+1}. klo ${endTime.getHours()}:${endTime.getMinutes().toString().padStart(2,'0')}
                 </div>
                 <div style="margin-top:10px;">
-                    Hinta: <strong>${totalDisplay}</strong> 
+                    Hinta: <strong>${totalDisplay}</strong>
                     <small>(${avgDisplay} snt/kWh)</small>
                 </div>
             `;
@@ -422,11 +444,44 @@
         }
 
         function saveAll() {
-            localStorage.setItem('selected_car_idx', document.getElementById('car_select').value);
-            localStorage.setItem('charge', document.getElementById('charge').value);
-            localStorage.setItem('target', document.getElementById('target').value);
-            localStorage.setItem('extra', document.getElementById('extra_cost').value);
-            localStorage.setItem('charging_power', document.getElementById('charging_power').value);
+            localStorage.setItem('selected_car_idx', document.getElementById('car_select'    ).value);
+            localStorage.setItem('charge',           document.getElementById('charge'        ).value);
+            localStorage.setItem('target',           document.getElementById('target'        ).value);
+            localStorage.setItem('extra',            document.getElementById('extra_cost'    ).value);
+            localStorage.setItem('charging_power',   document.getElementById('charging_power').value);
+        }
+
+        function nollaaAsetukset() {
+            if (confirm("Haluatko varmasti nollata kaikki tallennetut asetukset?")) {
+                // 1. Poistetaan tiedot localStorage-muistista
+                localStorage.removeItem('selected_car_idx');
+                localStorage.removeItem('charge');
+                localStorage.removeItem('target');
+                localStorage.removeItem('extra');
+                localStorage.removeItem('charging_power');
+
+                // 2. Palautetaan lomake oletusarvoihin (tyhjennetään kentät)
+                document.getElementById('car_select').value = 0; // Ensimmäinen auto listassa
+                document.getElementById('charge').value = "";
+                document.getElementById('target').value = "";
+                document.getElementById('extra_cost').value = "";
+                document.getElementById('charging_power').value = "";
+
+                // 3. Tyhjennetään tulosnäyttö
+                document.getElementById('result').innerHTML = "";
+
+                alert("Asetukset nollattu!");
+                location.reload(); // Päivittää näkymän ja tyhjentää kentät
+            }
+        }
+
+        function toggleSettings() {
+            const menu = document.getElementById('settings-menu');
+            if (menu.style.display === 'none') {
+                menu.style.display = 'block';
+            } else {
+                menu.style.display = 'none';
+            }
         }
 
         window.onload = () => {
