@@ -40,7 +40,12 @@
 
         .panel-btn { padding: 6px 10px; font-size: 0.95rem; border-radius: 6px; border: none; cursor: pointer; min-width: 0; width: auto; height: 36px; }
         .panel-btn.primary { background: var(--primary-blue); color: #fff; }
-        .panel-btn.cancel  { background: #6c757d; color: #fff; }
+        .panel-btn.save { background: #28a745; color: #fff; }
+        .panel-btn.cancel  { background: #f44336; color: #fff; }
+
+        /* Settings actions: stack buttons vertically and make them full-width */
+        .settings-actions { display:flex; flex-direction:column; gap:8px; margin-top:8px; }
+        .settings-actions .panel-btn { width:100%; box-sizing:border-box; padding:10px 12px; }
 
         @media (max-width: 600px) {
             :root { --page-horizontal-padding: 0.75rem; }
@@ -70,16 +75,21 @@
         <h2>Asetukset</h2>
         <hr>
 
-        <div style="margin: 20px 0;">
-            <p>Täällä voit nollata sovelluksen tallentamat tiedot.</p>
-            <button onclick="nollaaAsetukset()" style="background-color: #f44336; color: white; padding: 10px; width: 100%; border: none; border-radius: 5px;">
-                Tyhjennä tallennetut asetukset
-            </button>
+        <div style="margin: 12px 0; background:#fff3cd; padding:10px; border-radius:8px;">
+            <label style="font-weight:bold; display:block; margin-bottom:6px;">Siirto + Marginaali (snt/kWh):</label>
+            <input type="text" id="extra_cost" value="6,51752" inputmode="decimal" pattern="[0-9]+([.,][0-9]+)?" title="Käytä pilkkua desimaalierottimena (esim. 6,52)" style="width:100%; padding:8px; box-sizing:border-box; border:2px solid #ccc; border-radius:6px;">
+            <div class="help" style="margin-top:6px;">Muokkaa arvoa ja paina <strong>Tallenna asetukset</strong>.</div>
         </div>
 
-        <button onclick="toggleSettings()" style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); padding: 10px 20px;">
-            Sulje valikko
-        </button>
+
+        <div style="margin: 20px 0;">
+            <p>Tyhjennä-painikkeella voit nollata sovelluksen tallentamat tiedot. Kenttiin, kuten autojen listaan, palautetaan oletusarvot.</p>
+            <div class="settings-actions">
+                <button onclick="resetSettings()" class="panel-btn cancel">Tyhjennä tallennetut asetukset</button>
+                <button class="panel-btn save" onclick="saveSettings()">Tallenna asetukset</button>
+                <button class="panel-btn primary" onclick="toggleSettings()">Sulje valikko</button>
+            </div>
+        </div>
     </div>
 
     <div id="price_status" class="status-box">Ladataan hintoja...</div>
@@ -149,10 +159,7 @@
 
     </div>
 
-    <div class="input-group" style="background:#fff3cd; padding:10px; border-radius:8px">
-        <label>Siirto + Marginaali (snt/kWh):</label>
-        <input type="text" id="extra_cost" value="6,51752" inputmode="decimal" pattern="[0-9]+([.,][0-9]+)?" title="Käytä pilkkua desimaalierottimena (esim. 6,52)">
-    </div>
+    <!-- moved extra_cost input to settings menu -->
 
     <button onclick="calculate()">LASKE EDULLISIN AIKA</button>
 
@@ -451,7 +458,7 @@
             localStorage.setItem('charging_power',   document.getElementById('charging_power').value);
         }
 
-        function nollaaAsetukset() {
+        function resetSettings() {
             if (confirm("Haluatko varmasti nollata kaikki tallennetut asetukset?")) {
                 // 1. Poistetaan tiedot localStorage-muistista
                 localStorage.removeItem('selected_car_idx');
@@ -491,9 +498,12 @@
             if(localStorage.getItem('charging_power')) document.getElementById('charging_power').value = localStorage.getItem('charging_power'); else document.getElementById('charging_power').value = "11";
 
             const extraEl = document.getElementById('extra_cost');
-            extraEl.addEventListener('blur', () => {
-                if (extraEl.value.includes('.')) extraEl.value = extraEl.value.replace(/\./g, ',');
-            });
+            if (extraEl) {
+                // Normalize on blur only; saving happens with the "Tallenna asetukset" button
+                extraEl.addEventListener('blur', () => {
+                    if (extraEl.value.includes('.')) extraEl.value = extraEl.value.replace(/\./g, ',');
+                });
+            }
             const powerEl = document.getElementById('charging_power');
             powerEl.addEventListener('blur', () => {
                 if (powerEl.value.includes('.')) powerEl.value = powerEl.value.replace(/\./g, ',');
@@ -503,6 +513,17 @@
             renderCars();
             fetchPrices();
         };
+
+            function saveSettings() {
+                const extraEl = document.getElementById('extra_cost');
+                if (extraEl) {
+                    // normalize decimal separator to comma
+                    if (extraEl.value.includes('.')) extraEl.value = extraEl.value.replace(/\./g, ',');
+                    localStorage.setItem('extra', extraEl.value);
+                }
+                // confirmation for the user
+                alert('Asetukset tallennettu.');
+            }
     </script>
 </body>
 </html>
