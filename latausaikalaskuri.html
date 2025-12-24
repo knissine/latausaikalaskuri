@@ -211,7 +211,7 @@
                 });
 
                 sahkoHinnat = Array.from(uniquePrices.values()).sort((a,b) => a.ts - b.ts)
-                    .map(p => ({ price: isFinite(p.price) ? Math.max(0, p.price) : 0, ts: p.ts, date: p.date }));
+                    .map(p => ({ price: isFinite(p.price) ? p.price : 0, ts: p.ts, date: p.date }));
 
                 if (sahkoHinnat.length > 0) {
                     const last = sahkoHinnat[sahkoHinnat.length - 1].date;
@@ -314,7 +314,7 @@
                 let currentWindowSum = 0;
                 for (let j = 0; j < blocksNeeded; j++) {
                     const p = Number(windowPrices[i + j].price);
-                    const priceNum = isFinite(p) ? Math.max(0, p) : 0;
+                    const priceNum = isFinite(p) ? p : 0;
                     currentWindowSum += priceNum + extra;
                 }
                 if (currentWindowSum < minSum) {
