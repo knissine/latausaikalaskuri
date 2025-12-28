@@ -6,6 +6,15 @@
     <title>Latausaikalaskuri</title>
     <link rel="manifest" href="manifest.json">
     <style>
+        .main-container {
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            padding: 0 15px;
+            box-sizing: border-box;
+            position: relative;
+        }
+
         :root {
             --font-size-small: 1.5rem;
             --font-size-medium: 2rem;
@@ -13,37 +22,33 @@
             --primary-blue: #007bff;
             --page-horizontal-padding: 1rem;
         }
-        body { font-family: Arial, sans-serif; margin: 20px; max-width: 800px; margin-left: auto; margin-right: auto; line-height: 1.3; }
+        body { font-family: Arial, sans-serif; margin: 20px 0; line-height: 1.3; }
+
+        /* ... (Kaikki muu CSS säilyy ennallaan) ... */
         h2 { font-size: var(--font-size-large); color: var(--primary-blue); margin-bottom: 20px; }
         .input-group { margin-bottom: 15px; }
         label { font-size: var(--font-size-small); display: block; font-weight: bold; margin-bottom: 5px; }
         input, select { font-size: var(--font-size-small); padding: 12px; width: 100%; border: 2px solid #ccc; border-radius: 8px; box-sizing: border-box; color: #111; background: #fff; }
         button { font-size: var(--font-size-small); background-color: var(--primary-blue); color: white; border: none; border-radius: 8px; padding: 20px; width: 100%; cursor: pointer; font-weight: bold; }
+        .content-box {background: #f8f9fa; border: 1px solid #ddd; border-radius: 12px; padding: 15px var(--page-horizontal-padding); margin-bottom: 20px; box-sizing: border-box; }
         .car-management { background: #f8f9fa; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #ddd; }
         .result-car { border: 4px solid #28a745; padding: 20px; margin-top: 25px; border-radius: 12px; background-color: #f0fff4; }
         .status-box { font-size: 1.1rem; padding: 10px; border-radius: 8px; margin-bottom: 20px; background: #eee; font-weight: bold; }
-        .flex-row { display: flex; gap: 10px; margin-top: 5px; }
-
         .flex-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; }
         .flex-row > .input-group { flex: 1 1 140px; min-width: 140px; box-sizing: border-box; }
-
         .small-btn { font-size: 1rem; padding: 8px; background: #6c757d; width: auto; margin: 0; color: #fff; border-radius: 8px; border: none; cursor: pointer; }
-        .form-section { padding: 0 var(--page-horizontal-padding); box-sizing: border-box; }
+        .form-section { background: #f8f9fa; padding: 0 var(--page-horizontal-padding); box-sizing: border-box; }
         .help { font-size: 0.9rem; color: #555; margin-top: 6px; display:block; }
-
         .collapse-panel { display: none; margin-top: 10px; padding: 10px; background: #fff; border-radius: 8px; border: 1px solid #e6e6e6; }
         .collapse-row { display:flex; gap:8px; align-items:center; }
         .collapse-row input { padding:10px; box-sizing: border-box; }
-
         .collapse-row .name-input { flex: 1 1 280px; min-width: 0; }
         .collapse-row .cap-input { flex: 0 0 110px; width: 110px; }
-
         .panel-btn { padding: 6px 10px; font-size: 0.95rem; border-radius: 6px; border: none; cursor: pointer; min-width: 0; width: auto; height: 36px; }
         .panel-btn.primary { background: var(--primary-blue); color: #fff; }
         .panel-btn.save { background: #28a745; color: #fff; }
         .panel-btn.cancel  { background: #f44336; color: #fff; }
-
-        /* Settings actions: stack buttons vertically and make them full-width */
+         /* Settings actions: stack buttons vertically and make them full-width */
         .settings-actions { display:flex; flex-direction:column; gap:8px; margin-top:8px; }
         .settings-actions .panel-btn { width:100%; box-sizing:border-box; padding:10px 12px; }
 
@@ -61,124 +66,137 @@
     </style>
 </head>
 <body>
+    <div class="main-container">
 
-    <div
-        id="settings-icon"
-        onclick="toggleSettings()"
-        style="position: fixed; top: 10px; right: 10px; font-size: 24px; cursor: pointer; z-index: 1001;">
-    ⚙️
-    </div>
-
-    <h2>Latausaikalaskuri</h2>
-
-    <div id="settings-menu" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 1000; padding: 20px; box-sizing: border-box; overflow-y: auto;">
-        <h2>Asetukset</h2>
-        <hr>
-
-        <div style="margin: 12px 0; background:#fff3cd; padding:10px; border-radius:8px;">
-            <label style="font-weight:bold; display:block; margin-bottom:6px;">Myyntimarginaali (snt/kWh):</label>
-            <input type="text" id="supplier_margin" value="0,45" inputmode="decimal" pattern="[0-9]+([.,][0-9]+)?" title="Käytä pilkkua desimaalierottimena" style="width:100%; padding:8px; box-sizing:border-box; border:2px solid #ccc; border-radius:6px;">
+        <div id="settings-icon" onclick="toggleSettings()"
+            style="position: absolute; top: 10px; right: 10px; font-size: 24px; cursor: pointer; z-index: 1001;">
+            ⚙️
         </div>
 
-        <div style="margin: 12px 0; background:#fff3cd; padding:10px; border-radius:8px;">
-            <label style="font-weight:bold; display:block; margin-bottom:6px;">Sähkön siirto (snt/kWh):</label>
-        <div style="margin-bottom: 12px;">
-            <span style="font-size: 0.8em; display: block; margin-bottom: 4px;">Päiväsiirron hinta (snt/kWh):</span>
-            <input type="text" id="transfer_day" value="6,12752" inputmode="decimal" style="width:100%; padding:8px; box-sizing:border-box; border:2px solid #ccc; border-radius:6px;">
-        </div>
+        <h2>Latausaikalaskuri</h2>
 
-        <div style="margin-bottom: 12px;">
-            <span style="font-size: 0.8em; display: block; margin-bottom: 4px;">Yösiirron hinta (snt/kWh):</span>
-            <input type="text" id="transfer_night" value="4,24752" inputmode="decimal" style="width:100%; padding:8px; box-sizing:border-box; border:2px solid #ccc; border-radius:6px;">
-        </div>
-            <label style="font-weight:bold; display:block; margin-bottom:6px;">Yösiirto voimassa (tunnit 0-24):</label>
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <input type="text" id="night_start" value="22" inputmode="numeric" placeholder="22" style="width:60px; padding:8px; text-align:center; border:2px solid #ccc; border-radius:6px;">
-                <span>–</span>
-                <input type="text" id="night_end" value="07" inputmode="numeric" placeholder="07" style="width:60px; padding:8px; text-align:center; border:2px solid #ccc; border-radius:6px;">
-                <span style="font-size: 0.85em; color: #666;">(klo)</span>
+        <div id="settings-menu"
+            style="display: none; position: absolute; top: 0; left: 0; background: rgba(255,255,255,0.95); z-index: 1000; padding: 20px; box-sizing: border-box; overflow-y: auto;">
+            <h2>Asetukset</h2>
+            <hr>
+
+            <div style="margin: 12px 0; background:#fff3cd; padding:10px; border-radius:8px;">
+                <label style="font-weight:bold; display:block; margin-bottom:6px;">Myyntimarginaali (snt/kWh):</label>
+                <input type="text" id="supplier_margin" value="0,45" inputmode="decimal" pattern="[0-9]+([.,][0-9]+)?"
+                    title="Käytä pilkkua desimaalierottimena"
+                    style="width:100%; padding:8px; box-sizing:border-box; border:2px solid #ccc; border-radius:6px;">
             </div>
-            <div class="help" style="margin-top:6px;">Muokkaa arvoja (käytä pilkkua) ja paina <strong>Tallenna asetukset</strong>.</div>
-        </div>
 
-        <div style="margin: 20px 0;">
-            <p>Tyhjennä-painikkeella voit nollata sovelluksen tallentamat tiedot. Kenttiin, kuten autojen listaan, palautetaan oletusarvot.</p>
-            <div class="settings-actions">
-                <button onclick="resetSettings()" class="panel-btn cancel">Tyhjennä tallennetut asetukset</button>
-                <button class="panel-btn save" onclick="saveSettings()">Tallenna asetukset</button>
-                <button class="panel-btn primary" onclick="toggleSettings()">Sulje valikko</button>
+            <div style="margin: 12px 0; background:#fff3cd; padding:10px; border-radius:8px;">
+                <label style="font-weight:bold; display:block; margin-bottom:6px;">Sähkön siirto (snt/kWh):</label>
+                <div style="margin-bottom: 12px;">
+                    <span style="font-size: 0.8em; display: block; margin-bottom: 4px;">Päiväsiirron hinta (snt/kWh):</span>
+                    <input type="text" id="transfer_day" value="6,12752" inputmode="decimal"
+                        style="width:100%; padding:8px; box-sizing:border-box; border:2px solid #ccc; border-radius:6px;">
+                </div>
+
+                <div style="margin-bottom: 12px;">
+                    <span style="font-size: 0.8em; display: block; margin-bottom: 4px;">Yösiirron hinta (snt/kWh):</span>
+                    <input type="text" id="transfer_night" value="4,24752" inputmode="decimal"
+                        style="width:100%; padding:8px; box-sizing:border-box; border:2px solid #ccc; border-radius:6px;">
+                </div>
+                <label style="font-weight:bold; display:block; margin-bottom:6px;">Yösiirto voimassa (tunnit 0-24):</label>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <input type="text" id="night_start" value="22" inputmode="numeric" placeholder="22"
+                        style="width:60px; padding:8px; text-align:center; border:2px solid #ccc; border-radius:6px;">
+                    <span>–</span>
+                    <input type="text" id="night_end" value="07" inputmode="numeric" placeholder="07"
+                        style="width:60px; padding:8px; text-align:center; border:2px solid #ccc; border-radius:6px;">
+                    <span style="font-size: 0.85em; color: #666;">(klo)</span>
+                </div>
+                <div class="help" style="margin-top:6px;">Muokkaa arvoja (käytä pilkkua) ja paina <strong>Tallenna
+                        asetukset</strong>.</div>
             </div>
-        </div>
-    </div>
 
-    <div id="price_status" class="status-box">Ladataan hintoja...</div>
-
-    <div class="car-management">
-        <label>Auto:</label>
-        <div class="flex-row">
-            <select id="car_select" onchange="saveAll()" style="flex:2"></select>
-            <button id="delete_car_btn" onclick="deleteCar()" class="small-btn" style="background:#dc3545">Poista</button>
-        </div>
-
-        <div style="margin-top:10px; display:flex; gap:8px;">
-            <button id="toggle_add_car" class="small-btn" aria-expanded="false" aria-controls="add_car_panel" onclick="toggleAddCar()" style="background:var(--primary-blue);">
-                Lisää auto
-            </button>
-            <div class="help" style="margin:0; align-self:center;">Lisää auto vain tarvittaessa</div>
-        </div>
-
-        <div id="add_car_panel" class="collapse-panel" aria-hidden="true">
-            <div class="collapse-row">
-                <input id="new_car_name" class="name-input" type="text" placeholder="Nimi (esim. Tesla Model 3)" aria-label="Auto nimi">
-                <input id="new_car_cap" class="cap-input" type="number" placeholder="kWh" aria-label="Kapasiteetti kWh" step="0.1">
-                <button class="panel-btn primary" onclick="addCarFromPanel()">Lisää</button>
-                <button class="panel-btn cancel" onclick="closeAddCarPanel()">Peruuta</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="form-section">
-
-        <div class="flex-row">
-            <div class="input-group" style="flex:1">
-                <label>Akku nyt %</label>
-                <input type="number" id="charge" value="20">
-            </div>
-            <div class="input-group" style="flex:1">
-                <label>Tavoite %</label>
-                <input type="number" id="target" value="80">
-            </div>
-            <div class="input-group" style="flex:1">
-                <label>Latausteho (kW)</label>
-                <input type="text" id="charging_power" value="11" inputmode="decimal" pattern="[0-9]+([.,][0-9]+)?" title="Anna teho kW:ina, voit käyttää pilkkua desimaalierottimena">
+            <div style="margin: 20px 0;">
+                <p>Tyhjennä-painikkeella voit nollata sovelluksen tallentamat tiedot. Kenttiin, kuten autojen listaan,
+                    palautetaan oletusarvot.</p>
+                <div class="settings-actions">
+                    <button onclick="resetSettings()" class="panel-btn cancel">Tyhjennä tallennetut asetukset</button>
+                    <button class="panel-btn save" onclick="saveSettings()">Tallenna asetukset</button>
+                    <button class="panel-btn primary" onclick="toggleSettings()">Sulje valikko</button>
+                </div>
             </div>
         </div>
 
-        <div class="input-group">
-            <label>Latausikkuna ALKAA:</label>
+        <div id="price_status" class="content-box">Ladataan hintoja...</div>
+
+        <div class="content-box">
+            <label>Auto:</label>
             <div class="flex-row">
-                <select id="start_day" style="flex:1">
-                    <option value="0" selected>Tänään</option>
-                    <option value="1">Huomenna</option>
-                </select>
-                <input type="text" id="start_time" value="00:00" style="flex:1">
+                <select id="car_select" onchange="saveAll()" style="flex:2"></select>
+                <button id="delete_car_btn" onclick="deleteCar()" class="small-btn"
+                    style="background:#dc3545">Poista</button>
+            </div>
+
+            <div style="margin-top:10px; display:flex; gap:8px;">
+                <button id="toggle_add_car" class="small-btn" aria-expanded="false" aria-controls="add_car_panel"
+                    onclick="toggleAddCar()" style="background:var(--primary-blue);">
+                    Lisää auto
+                </button>
+                <div class="help" style="margin:0; align-self:center;">Lisää auto vain tarvittaessa</div>
+            </div>
+
+            <div id="add_car_panel" class="collapse-panel" aria-hidden="true">
+                <div class="collapse-row">
+                    <input id="new_car_name" class="name-input" type="text" placeholder="Nimi (esim. Tesla Model 3)"
+                        aria-label="Auto nimi">
+                    <input id="new_car_cap" class="cap-input" type="number" placeholder="kWh" aria-label="Kapasiteetti kWh"
+                        step="0.1">
+                    <button class="panel-btn primary" onclick="addCarFromPanel()">Lisää</button>
+                    <button class="panel-btn cancel" onclick="closeAddCarPanel()">Peruuta</button>
+                </div>
             </div>
         </div>
 
-        <div class="input-group">
-            <label>Latausikkuna PÄÄTTYY:</label>
+        <div class="content-box">
             <div class="flex-row">
-                <select id="end_day" style="flex:1">
-                    <option value="0">Tänään</option>
-                    <option value="1" selected>Huomenna</option>
-                </select>
-                <input type="text" id="end_time" value="23:59" style="flex:1">
+                <div class="input-group" style="flex:1">
+                    <label>Akku nyt %</label>
+                    <input type="number" id="charge" value="20">
+                </div>
+                <div class="input-group" style="flex:1">
+                    <label>Tavoite %</label>
+                    <input type="number" id="target" value="80">
+                </div>
+                <div class="input-group" style="flex:1">
+                    <label>Latausteho (kW)</label>
+                    <input type="text" id="charging_power" value="11" inputmode="decimal" pattern="[0-9]+([.,][0-9]+)?"
+                        title="Anna teho kW:ina, voit käyttää pilkkua desimaalierottimena">
+                </div>
             </div>
+
+            <div class="input-group">
+                <label>Latausikkuna ALKAA:</label>
+                <div class="flex-row">
+                    <select id="start_day" style="flex:1">
+                        <option value="0" selected>Tänään</option>
+                        <option value="1">Huomenna</option>
+                    </select>
+                    <input type="text" id="start_time" value="00:00" style="flex:1">
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label>Latausikkuna PÄÄTTYY:</label>
+                <div class="flex-row">
+                    <select id="end_day" style="flex:1">
+                        <option value="0">Tänään</option>
+                        <option value="1" selected>Huomenna</option>
+                    </select>
+                    <input type="text" id="end_time" value="23:59" style="flex:1">
+                </div>
+            </div>
+
+            <button onclick="calculate()">LASKE EDULLISIN AIKA</button>
         </div>
 
     </div>
-
-    <button onclick="calculate()">LASKE EDULLISIN AIKA</button>
 
     <div id="result" class="result-car" style="display:none;"></div>
 
