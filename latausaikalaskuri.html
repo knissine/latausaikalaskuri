@@ -71,16 +71,35 @@
 
     <h2>Latausaikalaskuri</h2>
 
-    <div id="settings-menu" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 1000; padding: 20px; box-sizing: border-box;">
+    <div id="settings-menu" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 1000; padding: 20px; box-sizing: border-box; overflow-y: auto;">
         <h2>Asetukset</h2>
         <hr>
 
         <div style="margin: 12px 0; background:#fff3cd; padding:10px; border-radius:8px;">
-            <label style="font-weight:bold; display:block; margin-bottom:6px;">Siirto + Marginaali (snt/kWh):</label>
-            <input type="text" id="extra_cost" value="6,51752" inputmode="decimal" pattern="[0-9]+([.,][0-9]+)?" title="Käytä pilkkua desimaalierottimena (esim. 6,52)" style="width:100%; padding:8px; box-sizing:border-box; border:2px solid #ccc; border-radius:6px;">
-            <div class="help" style="margin-top:6px;">Muokkaa arvoa ja paina <strong>Tallenna asetukset</strong>.</div>
+            <label style="font-weight:bold; display:block; margin-bottom:6px;">Myyntimarginaali (snt/kWh):</label>
+            <input type="text" id="supplier_margin" value="0,45" inputmode="decimal" pattern="[0-9]+([.,][0-9]+)?" title="Käytä pilkkua desimaalierottimena" style="width:100%; padding:8px; box-sizing:border-box; border:2px solid #ccc; border-radius:6px;">
         </div>
 
+        <div style="margin: 12px 0; background:#fff3cd; padding:10px; border-radius:8px;">
+            <label style="font-weight:bold; display:block; margin-bottom:6px;">Sähkön siirto (snt/kWh):</label>
+        <div style="margin-bottom: 12px;">
+            <span style="font-size: 0.8em; display: block; margin-bottom: 4px;">Päiväsiirron hinta (snt/kWh):</span>
+            <input type="text" id="transfer_day" value="6,12752" inputmode="decimal" style="width:100%; padding:8px; box-sizing:border-box; border:2px solid #ccc; border-radius:6px;">
+        </div>
+
+        <div style="margin-bottom: 12px;">
+            <span style="font-size: 0.8em; display: block; margin-bottom: 4px;">Yösiirron hinta (snt/kWh):</span>
+            <input type="text" id="transfer_night" value="4,24752" inputmode="decimal" style="width:100%; padding:8px; box-sizing:border-box; border:2px solid #ccc; border-radius:6px;">
+        </div>
+            <label style="font-weight:bold; display:block; margin-bottom:6px;">Yösiirto voimassa (tunnit 0-24):</label>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <input type="text" id="night_start" value="22" inputmode="numeric" placeholder="22" style="width:60px; padding:8px; text-align:center; border:2px solid #ccc; border-radius:6px;">
+                <span>–</span>
+                <input type="text" id="night_end" value="07" inputmode="numeric" placeholder="07" style="width:60px; padding:8px; text-align:center; border:2px solid #ccc; border-radius:6px;">
+                <span style="font-size: 0.85em; color: #666;">(klo)</span>
+            </div>
+            <div class="help" style="margin-top:6px;">Muokkaa arvoja (käytä pilkkua) ja paina <strong>Tallenna asetukset</strong>.</div>
+        </div>
 
         <div style="margin: 20px 0;">
             <p>Tyhjennä-painikkeella voit nollata sovelluksen tallentamat tiedot. Kenttiin, kuten autojen listaan, palautetaan oletusarvot.</p>
@@ -159,8 +178,6 @@
 
     </div>
 
-    <!-- moved extra_cost input to settings menu -->
-
     <button onclick="calculate()">LASKE EDULLISIN AIKA</button>
 
     <div id="result" class="result-car" style="display:none;"></div>
@@ -184,14 +201,12 @@
         async function fetchPrices() {
             const statusBox = document.getElementById('price_status');
             try {
-                const [resT, resF] = await Promise.all([
-                    fetch('https://api.spot-hinta.fi/Today'),
-                    fetch('https://api.spot-hinta.fi/DayForward')
-                ]);
+                const response = await fetch('https://api.spot-hinta.fi/TodayAndDayForward');
+                if (!response.ok) {
+                    throw new Error('Haku epäonnistui: ${response.status}');
+                }
 
-                const dataToday = await resT.json();
-                const dataForward = resF.ok ? await resF.json() : [];
-                const combinedData = dataToday.concat(dataForward);
+                const combinedData = await response.json();
 
                 const uniquePrices = new Map();
 
@@ -271,8 +286,14 @@
                 return;
             }
 
-            let extra = parseLocalizedNumber(document.getElementById("extra_cost").value);
-            if (!isFinite(extra)) extra = 0;
+            let supplierMargin = parseLocalizedNumber(document.getElementById("supplier_margin").value);
+            if (!isFinite(supplierMargin)) supplierMargin = 0;
+
+            let transferDay = parseLocalizedNumber(document.getElementById("transfer_day").value);
+            if (!isFinite(transferDay)) transferDay = 0;
+
+            let transferNight = parseLocalizedNumber(document.getElementById("transfer_night").value);
+            if (!isFinite(transferNight)) transferNight = 0;
 
             const totalHoursExact = energyNeeded / chargingPower; // tuntia desimaalina
 
@@ -285,14 +306,23 @@
 
             const now = new Date();
             const getTs = (dayAdd, timeStr, isEnd) => {
-                const [h, m] = timeStr.split(':').map(Number);
+                // Pilkotaan syöte, mutta varmistetaan että minuuteille on oletusarvo 0
+                const parts = timeStr.split(':').map(Number);
+                const h = parts[0];
+                const m = parts.length > 1 ? parts[1] : 0; // Jos ei kaksoispistettä, minuutit = 0
+
                 const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + parseInt(dayAdd), h, m, 0, 0);
+
+                // Alkuperäinen logiikka vuorokauden vaihteeseen
                 if (isEnd && h === 23 && m === 59) d.setMinutes(60);
+
                 return d.getTime();
             };
 
             const startLimit = getTs(document.getElementById("start_day").value, document.getElementById("start_time").value, false);
-            const endLimit = getTs(document.getElementById("end_day").value, document.getElementById("end_time").value, true);
+            const endLimit   = getTs(document.getElementById("end_day"  ).value, document.getElementById("end_time"  ).value, true);
+            const nightStart = parseInt(document.getElementById('night_start').value) * 60;
+            const nightEnd   = parseInt(document.getElementById('night_end'  ).value) * 60;
 
             // Rajataan myös nykyhetkeen: ei oteta mukaan menneisyyden hintoja
             const nowTs = now.getTime();
@@ -315,7 +345,8 @@
                 for (let j = 0; j < blocksNeeded; j++) {
                     const p = Number(windowPrices[i + j].price);
                     const priceNum = isFinite(p) ? p : 0;
-                    currentWindowSum += priceNum + extra;
+                    const siirtoHinta = isNightTime(windowPrices[i + j].date, nightStart, nightEnd) ? transferNight : transferDay;
+                    currentWindowSum += priceNum + supplierMargin + siirtoHinta;
                 }
                 if (currentWindowSum < minSum) {
                     minSum = currentWindowSum;
@@ -387,6 +418,21 @@
             }, 120);
         }
 
+        function isNightTime(currentDate, startMin, endMin) {
+            if (isNaN(startMin) || isNaN(endMin)) return false;
+
+            const currentMin = currentDate.getHours() * 60 + currentDate.getMinutes();
+
+            if (startMin > endMin) {
+                // Tapaus: Yöaika ylittää keskiyön (esim. 22:00 - 07:00)
+                // On yö, jos kello on yli 22:00 TAI alle 07:00
+                return currentMin >= startMin || currentMin < endMin;
+            } else {
+                // Tapaus: Yöaika on saman vuorokauden sisällä (esim. 00:00 - 06:00)
+                return currentMin >= startMin && currentMin < endMin;
+            }
+        }
+
         function addCarInternal(name, capacity) {
             cars.push({ name, capacity });
             localStorage.setItem('my_cars', JSON.stringify(cars));
@@ -451,11 +497,11 @@
         }
 
         function saveAll() {
-            localStorage.setItem('selected_car_idx', document.getElementById('car_select'    ).value);
-            localStorage.setItem('charge',           document.getElementById('charge'        ).value);
-            localStorage.setItem('target',           document.getElementById('target'        ).value);
-            localStorage.setItem('extra',            document.getElementById('extra_cost'    ).value);
-            localStorage.setItem('charging_power',   document.getElementById('charging_power').value);
+            localStorage.setItem('selected_car_idx', document.getElementById('car_select'     ).value);
+            localStorage.setItem('charge',           document.getElementById('charge'         ).value);
+            localStorage.setItem('target',           document.getElementById('target'         ).value);
+            localStorage.setItem('supplier_margin',  document.getElementById('supplier_margin').value);
+            localStorage.setItem('charging_power',   document.getElementById('charging_power' ).value);
         }
 
         function resetSettings() {
@@ -464,14 +510,14 @@
                 localStorage.removeItem('selected_car_idx');
                 localStorage.removeItem('charge');
                 localStorage.removeItem('target');
-                localStorage.removeItem('extra');
+                localStorage.removeItem('supplier_margin');
                 localStorage.removeItem('charging_power');
 
                 // 2. Palautetaan lomake oletusarvoihin (tyhjennetään kentät)
                 document.getElementById('car_select').value = 0; // Ensimmäinen auto listassa
                 document.getElementById('charge').value = "";
                 document.getElementById('target').value = "";
-                document.getElementById('extra_cost').value = "";
+                document.getElementById('supplier_margin').value = "";
                 document.getElementById('charging_power').value = "";
 
                 // 3. Tyhjennetään tulosnäyttö
@@ -492,16 +538,16 @@
         }
 
         window.onload = () => {
-            if(localStorage.getItem('charge')) document.getElementById('charge').value = localStorage.getItem('charge');
-            if(localStorage.getItem('target')) document.getElementById('target').value = localStorage.getItem('target');
-            if(localStorage.getItem('extra')) document.getElementById('extra_cost').value = localStorage.getItem('extra'); else document.getElementById('extra_cost').value = "6,51752";
-            if(localStorage.getItem('charging_power')) document.getElementById('charging_power').value = localStorage.getItem('charging_power'); else document.getElementById('charging_power').value = "11";
+            if (localStorage.getItem('charge'         )) document.getElementById('charge'         ).value = localStorage.getItem('charge');
+            if (localStorage.getItem('target'         )) document.getElementById('target'         ).value = localStorage.getItem('target');
+            if (localStorage.getItem('supplier_margin')) document.getElementById('supplier_margin').value = localStorage.getItem('supplier_margin');
+            if (localStorage.getItem('charging_power' )) document.getElementById('charging_power' ).value = localStorage.getItem('charging_power'); else document.getElementById('charging_power').value = "11";
 
-            const extraEl = document.getElementById('extra_cost');
-            if (extraEl) {
+            const supplierMarginEl = document.getElementById('supplier_margin');
+            if (supplierMarginEl) {
                 // Normalize on blur only; saving happens with the "Tallenna asetukset" button
-                extraEl.addEventListener('blur', () => {
-                    if (extraEl.value.includes('.')) extraEl.value = extraEl.value.replace(/\./g, ',');
+                supplierMarginEl.addEventListener('blur', () => {
+                    if (supplierMarginEl.value.includes('.')) supplierMarginEl.value = supplierMarginEl.value.replace(/\./g, ',');
                 });
             }
             const powerEl = document.getElementById('charging_power');
@@ -515,11 +561,11 @@
         };
 
             function saveSettings() {
-                const extraEl = document.getElementById('extra_cost');
-                if (extraEl) {
+                const supplierMarginEl = document.getElementById('supplier_margin');
+                if (supplierMarginEl) {
                     // normalize decimal separator to comma
-                    if (extraEl.value.includes('.')) extraEl.value = extraEl.value.replace(/\./g, ',');
-                    localStorage.setItem('extra', extraEl.value);
+                    if (supplierMarginEl.value.includes('.')) supplierMarginEl.value = supplierMarginEl.value.replace(/\./g, ',');
+                    localStorage.setItem('supplier_margin', supplierMarginEl.value);
                 }
                 // confirmation for the user
                 alert('Asetukset tallennettu.');
