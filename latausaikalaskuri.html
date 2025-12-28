@@ -6,6 +6,15 @@
     <title>Latausaikalaskuri</title>
     <link rel="manifest" href="manifest.json">
     <style>
+        :root {
+            --font-size-small: 1.5rem;
+            --font-size-medium: 2rem;
+            --font-size-large: 2.5rem;
+            --primary-blue: #007bff;
+            --page-horizontal-padding: 1rem;
+            --app-background: #f5f5f7;
+        }
+
         .main-container {
             max-width: 800px;
             margin-left: auto;
@@ -13,16 +22,10 @@
             padding: 0 15px;
             box-sizing: border-box;
             position: relative;
+            background-color: var(--app-background);
         }
 
-        :root {
-            --font-size-small: 1.5rem;
-            --font-size-medium: 2rem;
-            --font-size-large: 2.5rem;
-            --primary-blue: #007bff;
-            --page-horizontal-padding: 1rem;
-        }
-        body { font-family: Arial, sans-serif; margin: 20px 0; line-height: 1.3; }
+        body { background-color: var(--app-background); font-family: Arial, sans-serif; margin: 20px 0; line-height: 1.3; }
 
         /* ... (Kaikki muu CSS säilyy ennallaan) ... */
         h2 { font-size: var(--font-size-large); color: var(--primary-blue); margin-bottom: 20px; }
@@ -30,14 +33,11 @@
         label { font-size: var(--font-size-small); display: block; font-weight: bold; margin-bottom: 5px; }
         input, select { font-size: var(--font-size-small); padding: 12px; width: 100%; border: 2px solid #ccc; border-radius: 8px; box-sizing: border-box; color: #111; background: #fff; }
         button { font-size: var(--font-size-small); background-color: var(--primary-blue); color: white; border: none; border-radius: 8px; padding: 20px; width: 100%; cursor: pointer; font-weight: bold; }
-        .content-box {background: #f8f9fa; border: 1px solid #ddd; border-radius: 12px; padding: 15px var(--page-horizontal-padding); margin-bottom: 20px; box-sizing: border-box; }
-        .car-management { background: #f8f9fa; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #ddd; }
+        .content-box {background-color: #ffffff; border: 1px solid #ddd; border-radius: 12px; padding: 15px var(--page-horizontal-padding); margin-bottom: 20px; box-sizing: border-box; }
         .result-car { border: 4px solid #28a745; padding: 20px; margin-top: 25px; border-radius: 12px; background-color: #f0fff4; }
-        .status-box { font-size: 1.1rem; padding: 10px; border-radius: 8px; margin-bottom: 20px; background: #eee; font-weight: bold; }
         .flex-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; }
         .flex-row > .input-group { flex: 1 1 140px; min-width: 140px; box-sizing: border-box; }
         .small-btn { font-size: 1rem; padding: 8px; background: #6c757d; width: auto; margin: 0; color: #fff; border-radius: 8px; border: none; cursor: pointer; }
-        .form-section { background: #f8f9fa; padding: 0 var(--page-horizontal-padding); box-sizing: border-box; }
         .help { font-size: 0.9rem; color: #555; margin-top: 6px; display:block; }
         .collapse-panel { display: none; margin-top: 10px; padding: 10px; background: #fff; border-radius: 8px; border: 1px solid #e6e6e6; }
         .collapse-row { display:flex; gap:8px; align-items:center; }
@@ -51,6 +51,7 @@
          /* Settings actions: stack buttons vertically and make them full-width */
         .settings-actions { display:flex; flex-direction:column; gap:8px; margin-top:8px; }
         .settings-actions .panel-btn { width:100%; box-sizing:border-box; padding:10px 12px; }
+        .settings-menu { display: none; position: absolute; top: 0; left: 0; background: var(--app-background); z-index: 1000; padding: 20px; box-sizing: border-box; overflow-y: auto; }
 
         @media (max-width: 600px) {
             :root { --page-horizontal-padding: 0.75rem; }
@@ -75,19 +76,18 @@
 
         <h2>Latausaikalaskuri</h2>
 
-        <div id="settings-menu"
-            style="display: none; position: absolute; top: 0; left: 0; background: rgba(255,255,255,0.95); z-index: 1000; padding: 20px; box-sizing: border-box; overflow-y: auto;">
+        <div class="settings-menu" id="settings-menu">
             <h2>Asetukset</h2>
             <hr>
 
-            <div style="margin: 12px 0; background:#fff3cd; padding:10px; border-radius:8px;">
+            <div class="content-box">
                 <label style="font-weight:bold; display:block; margin-bottom:6px;">Myyntimarginaali (snt/kWh):</label>
-                <input type="text" id="supplier_margin" value="0,45" inputmode="decimal" pattern="[0-9]+([.,][0-9]+)?"
+                <input type="text" id="supplier_margin" value="0,43" inputmode="decimal" pattern="[0-9]+([.,][0-9]+)?"
                     title="Käytä pilkkua desimaalierottimena"
                     style="width:100%; padding:8px; box-sizing:border-box; border:2px solid #ccc; border-radius:6px;">
             </div>
 
-            <div style="margin: 12px 0; background:#fff3cd; padding:10px; border-radius:8px;">
+            <div class="content-box">
                 <label style="font-weight:bold; display:block; margin-bottom:6px;">Sähkön siirto (snt/kWh):</label>
                 <div style="margin-bottom: 12px;">
                     <span style="font-size: 0.8em; display: block; margin-bottom: 4px;">Päiväsiirron hinta (snt/kWh):</span>
@@ -117,8 +117,8 @@
                 <p>Tyhjennä-painikkeella voit nollata sovelluksen tallentamat tiedot. Kenttiin, kuten autojen listaan,
                     palautetaan oletusarvot.</p>
                 <div class="settings-actions">
-                    <button onclick="resetSettings()" class="panel-btn cancel">Tyhjennä tallennetut asetukset</button>
-                    <button class="panel-btn save" onclick="saveSettings()">Tallenna asetukset</button>
+                    <button class="panel-btn cancel"  onclick="resetSettings()" >Tyhjennä tallennetut asetukset</button>
+                    <button class="panel-btn save"    onclick="saveSettings()"  >Tallenna asetukset</button>
                     <button class="panel-btn primary" onclick="toggleSettings()">Sulje valikko</button>
                 </div>
             </div>
@@ -196,9 +196,8 @@
             <button onclick="calculate()">LASKE EDULLISIN AIKA</button>
         </div>
 
+        <div id="result" class="content-box" style="display:none;"></div>
     </div>
-
-    <div id="result" class="result-car" style="display:none;"></div>
 
     <script>
         let sahkoHinnat = [];
@@ -419,6 +418,15 @@
                     Hinta: <strong>${totalDisplay}</strong>
                     <small>(${avgDisplay} snt/kWh)</small>
                 </div>
+                <div style="margin-top:10px;">
+                    Myyntimarginaali: <strong>${supplierMargin}</strong> snt/kWh
+                </div>
+                <div style="margin-top:10px;">
+                    Päiväsiirron hinta: <strong>${transferDay}</strong> snt/kWh
+                </div>
+                <div style="margin-top:10px;">
+                    Yösiirron hinta: <strong>${transferNight}</strong> snt/kWh
+                </div>
             `;
 
             // Sulje mahdollinen kenttäfokus (poistaa mobiilin näppäimistön)
@@ -498,10 +506,12 @@
 
         function deleteCar() {
             if (cars.length > 1) {
-                const idx = parseInt(document.getElementById('car_select').value, 10);
-                cars.splice(idx, 1);
-                localStorage.setItem('my_cars', JSON.stringify(cars));
-                renderCars();
+                if (confirm("Haluatko varmasti poistaa auton?")) {
+                    const idx = parseInt(document.getElementById('car_select').value, 10);
+                    cars.splice(idx, 1);
+                    localStorage.setItem('my_cars', JSON.stringify(cars));
+                    renderCars();
+                }
             } else {
                 alert('Vähintään yksi auto täytyy olla listassa.');
             }
@@ -519,6 +529,8 @@
             localStorage.setItem('charge',           document.getElementById('charge'         ).value);
             localStorage.setItem('target',           document.getElementById('target'         ).value);
             localStorage.setItem('supplier_margin',  document.getElementById('supplier_margin').value);
+            localStorage.setItem('transfer_day',     document.getElementById('transfer_day'   ).value);
+            localStorage.setItem('transfer_night',   document.getElementById('transfer_night' ).value);
             localStorage.setItem('charging_power',   document.getElementById('charging_power' ).value);
         }
 
@@ -526,17 +538,22 @@
             if (confirm("Haluatko varmasti nollata kaikki tallennetut asetukset?")) {
                 // 1. Poistetaan tiedot localStorage-muistista
                 localStorage.removeItem('selected_car_idx');
+                localStorage.removeItem('my_cars');
                 localStorage.removeItem('charge');
                 localStorage.removeItem('target');
                 localStorage.removeItem('supplier_margin');
+                localStorage.removeItem('transfer_day');
+                localStorage.removeItem('transfer_night');
                 localStorage.removeItem('charging_power');
 
                 // 2. Palautetaan lomake oletusarvoihin (tyhjennetään kentät)
-                document.getElementById('car_select').value = 0; // Ensimmäinen auto listassa
-                document.getElementById('charge').value = "";
-                document.getElementById('target').value = "";
-                document.getElementById('supplier_margin').value = "";
-                document.getElementById('charging_power').value = "";
+                document.getElementById('car_select'     ).value = 0; // Ensimmäinen auto listassa
+                document.getElementById('charge'         ).value = "";
+                document.getElementById('target'         ).value = "";
+                document.getElementById('supplier_margin').value = "0,43";
+                document.getElementById('transfer_day'   ).value = "6,12752";
+                document.getElementById('transfer_night' ).value = "4,24752";
+                document.getElementById('charging_power' ).value = "11";
 
                 // 3. Tyhjennetään tulosnäyttö
                 document.getElementById('result').innerHTML = "";
@@ -548,7 +565,7 @@
 
         function toggleSettings() {
             const menu = document.getElementById('settings-menu');
-            if (menu.style.display === 'none') {
+            if (menu.style.display !== 'block') {
                 menu.style.display = 'block';
             } else {
                 menu.style.display = 'none';
@@ -559,6 +576,8 @@
             if (localStorage.getItem('charge'         )) document.getElementById('charge'         ).value = localStorage.getItem('charge');
             if (localStorage.getItem('target'         )) document.getElementById('target'         ).value = localStorage.getItem('target');
             if (localStorage.getItem('supplier_margin')) document.getElementById('supplier_margin').value = localStorage.getItem('supplier_margin');
+            if (localStorage.getItem('transfer_day'   )) document.getElementById('transfer_day'   ).value = localStorage.getItem('transfer_day');
+            if (localStorage.getItem('transfer_night' )) document.getElementById('transfer_night' ).value = localStorage.getItem('transfer_night');
             if (localStorage.getItem('charging_power' )) document.getElementById('charging_power' ).value = localStorage.getItem('charging_power'); else document.getElementById('charging_power').value = "11";
 
             const supplierMarginEl = document.getElementById('supplier_margin');
