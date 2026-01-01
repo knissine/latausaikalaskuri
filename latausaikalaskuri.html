@@ -219,11 +219,12 @@
     </div>
 
     <script>
-        let sahkoHinnat = [];
         const defaultCars = [
             { name: "Audi e-tron", capacity: 95 }, { name: "VW ID.4", capacity: 77 }
         ];
-        let cars = JSON.parse(localStorage.getItem('my_cars')) || defaultCars;
+        let latausaikalaskuriAppState = getAppState();
+        let sahkoHinnat = [];
+        let cars = latausaikalaskuriAppState.cars || defaultCars;
 
         const fiNumber = new Intl.NumberFormat('fi-FI', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
         const fiPrice  = new Intl.NumberFormat('fi-FI', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -421,7 +422,10 @@
             const startData = windowPrices[bestStartIndex];
             const startTime = startData.date;
             const endTime = new Date(startTime.getTime() + blocksNeeded * 15 * 60000);
-            const chargingPowerDisplay = String(chargingPower).replace('.', ',');
+            const chargingPowerDisplay  = toFinnishString(chargingPower);
+            const supplierMarginDisplay = toFinnishString(supplierMargin);
+            const transferDayDisplay    = toFinnishString(transferDay);
+            const transferNightDisplay  = toFinnishString(transferNight);
 
             const resDiv = document.getElementById('result');
             resDiv.style.display = "block";
@@ -438,13 +442,13 @@
                     <small>(${avgDisplay} snt/kWh)</small>
                 </div>
                 <div style="margin-top:10px;">
-                    Myyntimarginaali: <strong>${supplierMargin}</strong> snt/kWh
+                    Myyntimarginaali: <strong>${supplierMarginDisplay}</strong> snt/kWh
                 </div>
                 <div style="margin-top:10px;">
-                    Päiväsiirron hinta: <strong>${transferDay}</strong> snt/kWh
+                    Päiväsiirron hinta: <strong>${transferDayDisplay}</strong> snt/kWh
                 </div>
                 <div style="margin-top:10px;">
-                    Yösiirron hinta: <strong>${transferNight}</strong> snt/kWh
+                    Yösiirron hinta: <strong>${transferNightDisplay}</strong> snt/kWh
                 </div>
             `;
 
@@ -480,7 +484,6 @@
 
         function addCarInternal(name, capacity) {
             cars.push({ name, capacity });
-            localStorage.setItem('my_cars', JSON.stringify(cars));
             renderCars();
             const sel = document.getElementById('car_select');
             sel.value = cars.length - 1;
@@ -493,6 +496,7 @@
             const expanded = btn.getAttribute('aria-expanded') === 'true';
             if (expanded) closeAddCarPanel(); else openAddCarPanel();
         }
+
         function openAddCarPanel() {
             const btn = document.getElementById('toggle_add_car');
             const panel = document.getElementById('add_car_panel');
@@ -501,6 +505,7 @@
             btn.setAttribute('aria-expanded', 'true');
             setTimeout(() => document.getElementById('new_car_name').focus(), 50);
         }
+
         function closeAddCarPanel() {
             const btn = document.getElementById('toggle_add_car');
             const panel = document.getElementById('add_car_panel');
@@ -528,7 +533,7 @@
                 if (confirm("Haluatko varmasti poistaa auton?")) {
                     const idx = parseInt(document.getElementById('car_select').value, 10);
                     cars.splice(idx, 1);
-                    localStorage.setItem('my_cars', JSON.stringify(cars));
+                    saveAll();
                     renderCars();
                 }
             } else {
@@ -538,41 +543,20 @@
 
         function renderCars() {
             const sel = document.getElementById('car_select');
-            const current = localStorage.getItem('selected_car_idx') || 0;
+            const current = latausaikalaskuriAppState.selected_car_idx || 0;
             sel.innerHTML = cars.map((c, i) => `<option value="${i}" ${i==current?'selected':''}>${c.name} (${c.capacity}kWh)</option>`).join('');
             if (parseInt(sel.value,10) >= cars.length) sel.value = cars.length - 1;
         }
 
         function saveAll() {
-            localStorage.setItem('selected_car_idx', document.getElementById('car_select'     ).value);
-            localStorage.setItem('charge',           document.getElementById('charge'         ).value);
-            localStorage.setItem('target',           document.getElementById('target'         ).value);
-            localStorage.setItem('supplier_margin',  document.getElementById('supplier_margin').value);
-            localStorage.setItem('transfer_day',     document.getElementById('transfer_day'   ).value);
-            localStorage.setItem('transfer_night',   document.getElementById('transfer_night' ).value);
-            localStorage.setItem('charging_power',   document.getElementById('charging_power' ).value);
+            setAppStateByElements();
+            localStorage.setItem('latausaikalaskuriAppState', JSON.stringify(latausaikalaskuriAppState));
         }
 
         function resetSettings() {
             if (confirm("Haluatko varmasti nollata kaikki tallennetut asetukset?")) {
-                // 1. Poistetaan tiedot localStorage-muistista
-                localStorage.removeItem('selected_car_idx');
-                localStorage.removeItem('my_cars');
-                localStorage.removeItem('charge');
-                localStorage.removeItem('target');
-                localStorage.removeItem('supplier_margin');
-                localStorage.removeItem('transfer_day');
-                localStorage.removeItem('transfer_night');
-                localStorage.removeItem('charging_power');
-
-                // 2. Palautetaan lomake oletusarvoihin (tyhjennetään kentät)
-                document.getElementById('car_select'     ).value = 0; // Ensimmäinen auto listassa
-                document.getElementById('charge'         ).value = "";
-                document.getElementById('target'         ).value = "";
-                document.getElementById('supplier_margin').value = "0,39";
-                document.getElementById('transfer_day'   ).value = "6,12752";
-                document.getElementById('transfer_night' ).value = "4,24752";
-                document.getElementById('charging_power' ).value = "11";
+                setDefaultAppState();
+                setElementsByAppState();
 
                 // 3. Tyhjennetään tulosnäyttö
                 document.getElementById('result').innerHTML = "";
@@ -597,17 +581,87 @@
             }
         }
 
+        function getAppState() {
+            let appStateStr = localStorage.getItem(`latausaikalaskuriAppState`);
+            if (appStateStr) {
+                return JSON.parse(appStateStr);
+            }
+
+            let appState = getDefaultAppState();
+            localStorage.setItem('latausaikalaskuriAppState', JSON.stringify(appState));
+            return appState;
+        }
+
+        function setDefaultAppState() {
+            latausaikalaskuriAppState = getDefaultAppState();
+        }
+
+        function getDefaultAppState() {
+            return {
+                supplier_margin:  0.39,
+                cars:             defaultCars,
+                selected_car_idx: 0,
+                charge:           0,
+                target:           80,
+                transfer_day:     6.12752,
+                transfer_night:   4.24752,
+                night_start:      "10",
+                night_end:        "07",
+                charging_power:   11
+            };
+        }
+
+        function setElementsByAppState() {
+            const savedData = localStorage.getItem(`latausaikalaskuriAppState`);
+            if (savedData) {
+                latausaikalaskuriAppState = JSON.parse(savedData);
+                cars                                             = latausaikalaskuriAppState.cars;
+                document.getElementById('car_select'     ).value = latausaikalaskuriAppState.selected_car_idx;
+                document.getElementById('charge'         ).value = toFinnishString(latausaikalaskuriAppState.charge);
+                document.getElementById('target'         ).value = toFinnishString(latausaikalaskuriAppState.target);
+                document.getElementById('supplier_margin').value = toFinnishString(latausaikalaskuriAppState.supplier_margin);
+                document.getElementById('transfer_day'   ).value = toFinnishString(latausaikalaskuriAppState.transfer_day);
+                document.getElementById('transfer_night' ).value = toFinnishString(latausaikalaskuriAppState.transfer_night);
+                document.getElementById('night_start'    ).value = latausaikalaskuriAppState.night_start;
+                document.getElementById('night_end'      ).value = latausaikalaskuriAppState.night_end;
+                document.getElementById('charging_power' ).value = toFinnishString(latausaikalaskuriAppState.charging_power);
+            }
+        }
+
+        function setAppStateByElements() {
+            // Luodaan yksi objekti, joka sisältää kaiken tilatiedon
+            latausaikalaskuriAppState = {
+                supplier_margin:  parseFinnishFloat(document.getElementById('supplier_margin').value),
+                cars:             cars,
+                selected_car_idx: parseFinnishFloat(document.getElementById('car_select').value),
+                charge:           parseFinnishFloat(document.getElementById('charge').value),
+                target:           parseFinnishFloat(document.getElementById('target').value),
+                transfer_day:     parseFinnishFloat(document.getElementById('transfer_day').value),
+                transfer_night:   parseFinnishFloat(document.getElementById('transfer_night').value),
+                night_start:      document.getElementById(`night_start`),
+                night_end:        document.getElementById(`night_end`),
+                charging_power:   parseFinnishFloat(document.getElementById('charging_power').value)
+            };
+        }
+
+        function toFinnishString(value) {
+            if (value === undefined || value === null) return "";
+            return value.toString().replace('.', ',');
+        }
+
+        function parseFinnishFloat(value) {
+            if (typeof value === 'string') {
+                const normalized = value.replace(',', '.');
+                return parseFloat(normalized) || 0;
+            }
+            return value;
+        }
+
         window.onload = () => {
-            if (localStorage.getItem('charge'         )) document.getElementById('charge'         ).value = localStorage.getItem('charge');
-            if (localStorage.getItem('target'         )) document.getElementById('target'         ).value = localStorage.getItem('target');
-            if (localStorage.getItem('supplier_margin')) document.getElementById('supplier_margin').value = localStorage.getItem('supplier_margin');
-            if (localStorage.getItem('transfer_day'   )) document.getElementById('transfer_day'   ).value = localStorage.getItem('transfer_day');
-            if (localStorage.getItem('transfer_night' )) document.getElementById('transfer_night' ).value = localStorage.getItem('transfer_night');
-            if (localStorage.getItem('charging_power' )) document.getElementById('charging_power' ).value = localStorage.getItem('charging_power'); else document.getElementById('charging_power').value = "11";
+            setElementsByAppState();
 
             const supplierMarginEl = document.getElementById('supplier_margin');
             if (supplierMarginEl) {
-                // Normalize on blur only; saving happens with the "Tallenna asetukset" button
                 supplierMarginEl.addEventListener('blur', () => {
                     if (supplierMarginEl.value.includes('.')) supplierMarginEl.value = supplierMarginEl.value.replace(/\./g, ',');
                 });
@@ -622,16 +676,10 @@
             fetchPrices();
         };
 
-            function saveSettings() {
-                const supplierMarginEl = document.getElementById('supplier_margin');
-                if (supplierMarginEl) {
-                    // normalize decimal separator to comma
-                    if (supplierMarginEl.value.includes('.')) supplierMarginEl.value = supplierMarginEl.value.replace(/\./g, ',');
-                    localStorage.setItem('supplier_margin', supplierMarginEl.value);
-                }
-                // confirmation for the user
-                alert('Asetukset tallennettu.');
-            }
+        function saveSettings() {
+            saveAll();
+            alert('Asetukset tallennettu.');
+        }
     </script>
 </body>
 </html>
