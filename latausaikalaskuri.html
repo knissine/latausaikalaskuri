@@ -28,7 +28,7 @@
         body { background-color: var(--app-background); font-family: Arial, sans-serif; margin: 20px 0; line-height: 1.3; }
 
         /* ... (Kaikki muu CSS säilyy ennallaan) ... */
-        h2 { font-size: var(--font-size-large); color: var(--primary-blue); margin-bottom: 20px; }
+        h2 { font-size: var(--font-size-large); color: var(--primary-blue); margin-top: 0; margin-bottom: 20px; }
         .input-group { margin-bottom: 15px; }
         label { font-size: var(--font-size-small); display: block; font-weight: bold; margin-bottom: 5px; }
         input, select { font-size: var(--font-size-small); padding: 12px; width: 100%; border: 2px solid #ccc; border-radius: 8px; box-sizing: border-box; color: #111; background: #fff; }
@@ -44,7 +44,13 @@
         .collapse-row input { padding:10px; box-sizing: border-box; }
         .collapse-row .name-input { flex: 1 1 280px; min-width: 0; }
         .collapse-row .cap-input { flex: 0 0 110px; width: 110px; }
-        .panel-btn { padding: 6px 10px; font-size: 0.95rem; border-radius: 6px; border: none; cursor: pointer; min-width: 0; width: auto; height: 36px; }
+        .panel-btn {
+            padding: 6px 10px; font-size: 0.95rem;
+            border-radius: 6px; border: none;
+            cursor: pointer;
+            min-width: 0; width: auto;
+            height: 45px !important;
+        }
         .panel-btn.primary { background: var(--primary-blue); color: #fff; }
         .panel-btn.save { background: #28a745; color: #fff; }
         .panel-btn.cancel  { background: #f44336; color: #fff; }
@@ -52,7 +58,10 @@
         .settings-actions { display:flex; flex-direction:column; gap:8px; margin-top:8px; }
         .settings-actions .panel-btn { width:100%; box-sizing:border-box; padding:10px 12px; }
         .settings-menu {
-            display: none; position: absolute; top: 0; left: 0;
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%;
             background: var(--app-background); z-index: 2000; padding: 20px; box-sizing: border-box; overflow-y: auto;
             border: 2px solid #e6e6e6; border-radius: 12px;
             max-height: 95vh; /* Valikko on max 95% ruudun korkeudesta */
@@ -69,6 +78,13 @@
         }
         #settings-icon {
             z-index: 2100 !important; /* Korkein arvo, jotta näkyy aina */
+        }
+        .version-info {
+            display: block;        /* Vie version omalle rivilleen */
+            font-size: 0.8rem;    /* Huomattavasti pienempi kuin h2 */
+            font-weight: normal;   /* Poistaa otsikon lihavoinnin versiolta */
+            color: #666;           /* Hieman haaleampi väri */
+            margin-top: 4px;       /* Pieni rako otsikon ja version välille */
         }
 
         @media (max-width: 600px) {
@@ -93,15 +109,13 @@
             ⚙️
         </div>
 
-        <h2>Latausaikalaskuri</h2>
-
         <div class="settings-menu" id="settings-menu">
             <h2>Asetukset</h2>
             <hr>
 
             <div class="content-box">
                 <label style="font-weight:bold; display:block; margin-bottom:6px;">Myyntimarginaali (snt/kWh):</label>
-                <input type="text" id="supplier_margin" value="0,43" inputmode="decimal" pattern="[0-9]+([.,][0-9]+)?"
+                <input type="text" class="finnish-number" id="supplier_margin" inputmode="decimal" pattern="[0-9]+([.,][0-9]+)?"
                     title="Käytä pilkkua desimaalierottimena"
                     style="width:100%; padding:8px; box-sizing:border-box; border:2px solid #ccc; border-radius:6px;">
             </div>
@@ -110,21 +124,21 @@
                 <label style="font-weight:bold; display:block; margin-bottom:6px;">Sähkön siirto (snt/kWh):</label>
                 <div style="margin-bottom: 12px;">
                     <span style="font-size: 0.8em; display: block; margin-bottom: 4px;">Päiväsiirron hinta (snt/kWh):</span>
-                    <input type="text" id="transfer_day" value="6,12752" inputmode="decimal"
+                    <input type="text" class="finnish-number" id="transfer_day" inputmode="decimal"
                         style="width:100%; padding:8px; box-sizing:border-box; border:2px solid #ccc; border-radius:6px;">
                 </div>
 
                 <div style="margin-bottom: 12px;">
                     <span style="font-size: 0.8em; display: block; margin-bottom: 4px;">Yösiirron hinta (snt/kWh):</span>
-                    <input type="text" id="transfer_night" value="4,24752" inputmode="decimal"
+                    <input type="text" class="finnish-number" id="transfer_night" inputmode="decimal"
                         style="width:100%; padding:8px; box-sizing:border-box; border:2px solid #ccc; border-radius:6px;">
                 </div>
                 <label style="font-weight:bold; display:block; margin-bottom:6px;">Yösiirto voimassa (tunnit 0-24):</label>
                 <div style="display: flex; align-items: center; gap: 10px;">
-                    <input type="text" id="night_start" value="22" inputmode="numeric" placeholder="22"
+                    <input type="text" id="night_start" inputmode="numeric" placeholder="22"
                         style="width:60px; padding:8px; text-align:center; border:2px solid #ccc; border-radius:6px;">
                     <span>–</span>
-                    <input type="text" id="night_end" value="07" inputmode="numeric" placeholder="07"
+                    <input type="text" id="night_end" inputmode="numeric" placeholder="07"
                         style="width:60px; padding:8px; text-align:center; border:2px solid #ccc; border-radius:6px;">
                     <span style="font-size: 0.85em; color: #666;">(klo)</span>
                 </div>
@@ -142,6 +156,11 @@
                 </div>
             </div>
         </div>
+
+        <h2>
+            Latausaikalaskuri
+            <span class="version-info">v. 20260101</span>
+        </h2>
 
         <div id="price_status" class="content-box">Ladataan hintoja...</div>
 
@@ -556,13 +575,14 @@
         function resetSettings() {
             if (confirm("Haluatko varmasti nollata kaikki tallennetut asetukset?")) {
                 setDefaultAppState();
-                setElementsByAppState();
+                localStorage.setItem('latausaikalaskuriAppState', JSON.stringify(latausaikalaskuriAppState));
+                setElementsAndAppStateByLocalStorage();
 
                 // 3. Tyhjennetään tulosnäyttö
                 document.getElementById('result').innerHTML = "";
 
                 alert("Asetukset nollattu!");
-                location.reload(); // Päivittää näkymän ja tyhjentää kentät
+              //location.reload(); // Päivittää näkymän ja tyhjentää kentät
             }
         }
 
@@ -611,7 +631,7 @@
             };
         }
 
-        function setElementsByAppState() {
+        function setElementsAndAppStateByLocalStorage() {
             const savedData = localStorage.getItem(`latausaikalaskuriAppState`);
             if (savedData) {
                 latausaikalaskuriAppState = JSON.parse(savedData);
@@ -638,8 +658,8 @@
                 target:           parseFinnishFloat(document.getElementById('target').value),
                 transfer_day:     parseFinnishFloat(document.getElementById('transfer_day').value),
                 transfer_night:   parseFinnishFloat(document.getElementById('transfer_night').value),
-                night_start:      document.getElementById(`night_start`),
-                night_end:        document.getElementById(`night_end`),
+                night_start:      document.getElementById(`night_start`).value,
+                night_end:        document.getElementById(`night_end`).value,
                 charging_power:   parseFinnishFloat(document.getElementById('charging_power').value)
             };
         }
@@ -657,8 +677,17 @@
             return value;
         }
 
+        document.querySelectorAll('.finnish-number').forEach(input => {
+            input.addEventListener('input', function() {
+                // Sallitaan vain numerot ja yksi erotin, muutetaan piste pilkuksi
+                let v = this.value.replace(/[^0-9.,]/g, '').replace(/\./g, ',');
+                const parts = v.split(',');
+                this.value = parts.length > 2 ? parts[0] + ',' + parts.slice(1).join('') : v;
+            });
+        });
+
         window.onload = () => {
-            setElementsByAppState();
+            setElementsAndAppStateByLocalStorage();
 
             const supplierMarginEl = document.getElementById('supplier_margin');
             if (supplierMarginEl) {
