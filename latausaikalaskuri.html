@@ -59,9 +59,10 @@
         .settings-actions .panel-btn { width:100%; box-sizing:border-box; padding:10px 12px; }
         .settings-menu {
             display: none;
-            position: fixed;
+            position: absolute;
             top: 0; left: 0;
             width: 100%;
+            max-width: 800px;
             background: var(--app-background); z-index: 2000; padding: 20px; box-sizing: border-box; overflow-y: auto;
             border: 2px solid #e6e6e6; border-radius: 12px;
             max-height: 95vh; /* Valikko on max 95% ruudun korkeudesta */
@@ -105,7 +106,7 @@
     <div class="main-container">
 
         <div id="settings-icon" onclick="toggleSettings()"
-            style="position: absolute; top: 10px; right: 10px; font-size: 24px; cursor: pointer; z-index: 1001;">
+            style="position: absolute; top: 10px; right: 10px; font-size: 24px; cursor: pointer; z-index: 2100;">
             ⚙️
         </div>
 
@@ -147,10 +148,8 @@
             </div>
 
             <div style="margin: 20px 0;">
-                <p>Tyhjennä-painikkeella voit nollata sovelluksen tallentamat tiedot. Kenttiin, kuten autojen listaan,
-                    palautetaan oletusarvot.</p>
                 <div class="settings-actions">
-                    <button class="panel-btn cancel"  onclick="resetSettings()" >Tyhjennä tallennetut asetukset</button>
+                    <button class="panel-btn cancel"  onclick="resetSettings()" >Palauta oletusarvot</button>
                     <button class="panel-btn save"    onclick="saveSettings()"  >Tallenna asetukset</button>
                     <button class="panel-btn primary" onclick="toggleSettings()">Sulje valikko</button>
                 </div>
