@@ -572,7 +572,7 @@
         }
 
         function resetSettings() {
-            if (confirm("Haluatko varmasti nollata kaikki tallennetut asetukset?")) {
+            if (confirm("Haluatko varmasti palauttaa oletusasetukset?")) {
                 setDefaultAppState();
                 localStorage.setItem('latausaikalaskuriAppState', JSON.stringify(latausaikalaskuriAppState));
                 setElementsAndAppStateByLocalStorage();
@@ -580,7 +580,7 @@
                 // 3. Tyhjennetään tulosnäyttö
                 document.getElementById('result').innerHTML = "";
 
-                alert("Asetukset nollattu!");
+                alert("Asetukset palautettu oletusarvoihin!");
               //location.reload(); // Päivittää näkymän ja tyhjentää kentät
             }
         }
