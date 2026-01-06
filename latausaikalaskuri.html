@@ -157,7 +157,7 @@
 
         <h2>
             Latausaikalaskuri
-            <span class="version-info">v. 20260104</span>
+            <span class="version-info">v. 20260106</span>
         </h2>
 
         <div id="price_status" class="content-box">Ladataan hintoja...</div>
@@ -253,11 +253,37 @@
         }
 
         async function fetchPrices() {
+            const now = new Date();
+            const currentHour = now.getHours();
+
+            // Tarkistetaan kesäaika (isDST)
+            const stdTimezoneOffset = new Date(now.getFullYear(), 0, 1).getTimezoneOffset();
+            const isDST = now.getTimezoneOffset() < stdTimezoneOffset;
+
+            // Julkaisuraja: talvella klo 14, kesällä klo 15
+            const releaseHour = isDST ? 15 : 14;
+
+            // Tarkistetaan, onko meillä jo riittävästi dataa
+            if (typeof sahkoHinnat !== 'undefined' && sahkoHinnat.length > 0) {
+                const lastPriceDate = sahkoHinnat[sahkoHinnat.length - 1].date;
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                tomorrow.setHours(0, 0, 0, 0);
+
+                const hasTomorrowPrices = lastPriceDate >= tomorrow;
+                if (hasTomorrowPrices) return;
+
+                if (currentHour < releaseHour) {
+                    //console.log("Hinnat ovat jo ajan tasalla, haku ohitetaan.");
+                    return;
+                }
+            }
+
             const statusBox = document.getElementById('price_status');
             try {
                 const response = await fetch('https://api.spot-hinta.fi/TodayAndDayForward');
                 if (!response.ok) {
-                    throw new Error('Haku epäonnistui: ${response.status}');
+                    throw new Error(`Haku epäonnistui: ${response.status}`);
                 }
 
                 const combinedData = await response.json();
@@ -267,20 +293,26 @@
                 combinedData.forEach(item => {
                     const raw = item.PriceWithTax;
                     const val = parseLocalizedNumber(raw); // expect €/kWh
-                    const time = new Date(item.DateTime).getTime();
+                    const dateObj = new Date(item.DateTime);
+                    const time = dateObj.getTime();
                     // store raw numeric value (snt/kWh) or NaN if parse failed
                     const sntPerKwh = isFinite(val) ? val * 100 : NaN;
                     if (!uniquePrices.has(time)) {
                         uniquePrices.set(time, {
                             price: sntPerKwh,
                             ts: time,
-                            date: new Date(item.DateTime)
+                            date: dateObj
                         });
                     }
                 });
 
-                sahkoHinnat = Array.from(uniquePrices.values()).sort((a,b) => a.ts - b.ts)
-                    .map(p => ({ price: isFinite(p.price) ? p.price : 0, ts: p.ts, date: p.date }));
+                sahkoHinnat = Array.from(uniquePrices.values())
+                    .sort((a, b) => a.ts - b.ts)
+                    .map(p => ({
+                        price: isFinite(p.price) ? p.price : 0,
+                        ts: p.ts,
+                        date: p.date
+                    }));
 
                 if (sahkoHinnat.length > 0) {
                     const last = sahkoHinnat[sahkoHinnat.length - 1].date;
@@ -315,8 +347,16 @@
             }, 100);
         }
 
-        function calculate() {
+        async function calculate() {
+            await fetchPrices();
+
             saveAll();
+
+            // Tarkistetaan vielä varmuuden vuoksi, että saatiinko hinnat (esim. verkkovirhetilanteessa)
+            if (typeof sahkoHinnat === 'undefined' || sahkoHinnat.length === 0) {
+                showResultError("Sähköhintoja ei saatu ladattua.");
+                return;
+            }
 
             const selIdx = parseInt(document.getElementById('car_select').value, 10) || 0;
             const car = cars[selIdx] || cars[0];
@@ -384,7 +424,16 @@
 
             let windowPrices = sahkoHinnat
                 .filter(h => h.ts >= adjustedStart && h.ts < endLimit)
-                .map(p => ({ price: Number(p.price) || 0, ts: p.ts, date: p.date }));
+                .map(p => {
+                    // Lasketaan siirtohinta valmiiksi tälle 15-minuuttiselle
+                    const siirto = isNightTime(p.date, nightStart, nightEnd) ? transferNight : transferDay;
+                    return {
+                        // p.price on jo varmuudella numero aiemman käsittelyn ansiosta
+                        totalPrice: p.price + supplierMargin + siirto,
+                        ts: p.ts,
+                        date: p.date
+                    }
+            });
 
             if (windowPrices.length < blocksNeeded) {
                 showResultError(`Aikaikkuna on liian lyhyt. Tarve ${fiNumber.format(blocksNeeded/4)} h.`);
@@ -397,10 +446,8 @@
             for (let i = 0; i <= windowPrices.length - blocksNeeded; i++) {
                 let currentWindowSum = 0;
                 for (let j = 0; j < blocksNeeded; j++) {
-                    const p = Number(windowPrices[i + j].price);
-                    const priceNum = isFinite(p) ? p : 0;
-                    const siirtoHinta = isNightTime(windowPrices[i + j].date, nightStart, nightEnd) ? transferNight : transferDay;
-                    currentWindowSum += priceNum + supplierMargin + siirtoHinta;
+                    // totalPrice on jo varmuudella numero
+                    currentWindowSum += windowPrices[i + j].totalPrice;
                 }
                 if (currentWindowSum < minSum) {
                     minSum = currentWindowSum;
@@ -687,7 +734,7 @@
             });
         });
 
-        window.onload = () => {
+        window.onload = async() => {
             setElementsAndAppStateByLocalStorage();
 
             const supplierMarginEl = document.getElementById('supplier_margin');
@@ -703,7 +750,7 @@
 
             closeAddCarPanel();
             renderCars();
-            fetchPrices();
+            await fetchPrices();
         };
 
         function saveSettings() {
