@@ -232,7 +232,13 @@
             <button onclick="calculate()">LASKE EDULLISIN AIKA</button>
         </div>
 
-        <div id="result" class="content-box" style="display:none;"></div>
+        <div id="error" class="content-box" style="display:none;"></div>
+
+        <div id="result" class="content-box" style="display:none;">
+            <div id="result_car_and_charge" class="content-box" style="display:none;"></div>
+            <div id="result_periods"        class="content-box" style="display:none;"></div>
+            <div id="result_prices"         class="content-box" style="display:none;"></div>
+        </div>
     </div>
 
     <script>
@@ -329,10 +335,19 @@
             }
         }
 
+        function clearError() {
+            const resDiv = document.getElementById('error');
+            resDiv.style.display = "none";
+            resDiv.innerHTML = "";
+        }
+
         function showResultError(msg) {
-            const resDiv = document.getElementById('result');
+            const resDiv = document.getElementById('error');
             resDiv.style.display = "block";
             resDiv.innerHTML = `<div style="color:red; font-weight:bold;">${msg}</div>`;
+
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = "none";
 
             // sulje mahdollinen fokus ja skrollaa virheen kohdalta näkyviin mobiilissa
             if (document.activeElement && typeof document.activeElement.blur === 'function') {
@@ -351,6 +366,8 @@
             await fetchPrices();
 
             saveAll();
+
+            clearError();
 
             // Tarkistetaan vielä varmuuden vuoksi, että saatiinko hinnat (esim. verkkovirhetilanteessa)
             if (typeof sahkoHinnat === 'undefined' || sahkoHinnat.length === 0) {
@@ -421,7 +438,7 @@
             // Rajataan myös nykyhetkeen: ei oteta mukaan menneisyyden hintoja
             const nowTs = now.getTime();
             const adjustedStart = Math.max(startLimit, nowTs);
-
+           
             let windowPrices = sahkoHinnat
                 .filter(h => h.ts >= adjustedStart && h.ts < endLimit)
                 .map(p => {
@@ -434,6 +451,20 @@
                         date: p.date
                     }
             });
+
+
+const result = findOptimalPeriods(windowPrices, blocksNeeded, 4);
+
+if (result.cost === Infinity) {
+    showResultError("Optimointi epäonnistui. Ehkä aikaikkuna on liian lyhyt?");
+    return;
+}
+
+// result.indices sisältää nyt kaikkien valittujen 15min jaksojen indeksit
+// Voit ryhmitellä ne tulosteeseen näin:
+const selectedPrices = result.indices.map(i => windowPrices[i]);
+// avgPrice = result.cost / blocksNeeded;
+
 
             if (windowPrices.length < blocksNeeded) {
                 showResultError(`Aikaikkuna on liian lyhyt. Tarve ${fiNumber.format(blocksNeeded/4)} h.`);
@@ -493,14 +524,22 @@
 
             const resDiv = document.getElementById('result');
             resDiv.style.display = "block";
-            resDiv.innerHTML = `
+
+            const resCarAndChargeDiv = document.getElementById('result_car_and_charge');
+            resCarAndChargeDiv.style.display = "block";
+            resCarAndChargeDiv.innerHTML = `
                 <div style="font-size:1.6rem; font-weight:bold">${car.name}</div>
                 <div style="margin: 10px 0;">Tarve: ${fiNumber.format(energyNeeded)} kWh (${timeStr})</div>
                 <div style="font-size:1.1rem; margin-bottom:6px;">Latausteho: <strong>${chargingPowerDisplay} kW</strong></div>
-                <div style="font-size:1.8rem; color:#28a745; font-weight:bold;">
-                    ${startTime.getDate()}.${startTime.getMonth()+1}. klo ${startTime.getHours()}:${startTime.getMinutes().toString().padStart(2,'0')} -<br>
-                    ${endTime.getDate()}.${endTime.getMonth()+1}. klo ${endTime.getHours()}:${endTime.getMinutes().toString().padStart(2,'0')}
-                </div>
+            `;
+
+            const resPeriodsDiv = document.getElementById('result_periods');
+            resPeriodsDiv.style.display = "block";
+            resPeriodsDiv.innerHTML = constructChargingPeriod(startTime, endTime) + constructChargingPeriod(startTime, endTime);
+
+            const resPrices = document.getElementById('result_prices');
+            resPrices.style.display = "block";
+            resPrices.innerHTML = `
                 <div style="margin-top:10px;">
                     Hinta: <strong>${totalDisplay}</strong>
                     <small>(${avgDisplay} snt/kWh)</small>
@@ -529,6 +568,118 @@
                     window.scrollTo({ top: resDiv.offsetTop - 20, behavior: 'smooth' });
                 }
             }, 120);
+        }
+
+        function constructChargingPeriod(startTime, endTime) {
+            return `
+                <div class="content-box" style="font-size:1.8rem; color:#28a745; font-weight:bold;">
+                    ${startTime.getDate()}.${startTime.getMonth()+1}. klo ${startTime.getHours()}:${startTime.getMinutes().toString().padStart(2,'0')} -<br>
+                    ${endTime  .getDate()}.${endTime  .getMonth()+1}. klo ${endTime  .getHours()}:${endTime  .getMinutes().toString().padStart(2,'0')}
+                </div>
+            `;
+        }
+
+        /**
+         * @param {Array} prices - windowPrices-taulukko ({totalPrice, ts, date})
+         * @param {number} totalNeeded - Montako 15min jaksoa tarvitaan (blocksNeeded)
+         * @param {number} maxPeriods - Maksimi latausjaksojen määrä (esim. 4)
+         */
+        function findOptimalPeriods(prices, totalNeeded, maxPeriods) {
+            const n = prices.length;
+            
+            // Luodaan DP-taulukko: dp[vartteja_ladattu][jaksoja_kaytetty][nykyinen_indeksi]
+            // Koska tämä voi olla muistisyöppö, käytetään tässä hieman suoraviivaisempaa
+            // lähestymistapaa, joka sopii selaimelle:
+            
+            // Tulosobjekti parhaalle löydölle
+            let bestResult = {
+                totalCost: Infinity,
+                selectedIndices: []
+            };
+        
+            // "Memoisaatiota" varten
+            const memo = new Map();
+        
+            function solve(idx, blocksLeft, periodsLeft, isCharging) {
+                const key = `${idx}-${blocksLeft}-${periodsLeft}-${isCharging}`;
+                if (memo.has(key)) return memo.get(key);
+        
+                // Perustapaukset
+                if (blocksLeft === 0) return { cost: 0, indices: [] };
+                if (idx >= n) return { cost: Infinity, indices: [] };
+                if (periodsLeft === 0 && !isCharging) return { cost: Infinity, indices: [] };
+        
+                // Vaihtoehto 1: Ei ladata tässä vartissa
+                let resSkip = { cost: Infinity, indices: [] };
+                resSkip = solve(idx + 1, blocksLeft, periodsLeft, false);
+        
+                // Vaihtoehto 2: Ladataan tässä vartissa
+                let resCharge = { cost: Infinity, indices: [] };
+                
+                // Jos jatketaan latausta tai aloitetaan uusi jakso
+                let canCharge = false;
+                let nextPeriods = periodsLeft;
+        
+                if (isCharging) {
+                    canCharge = true; // Jatketaan nykyistä jaksoa
+                } else if (periodsLeft > 0) {
+                    canCharge = true; // Aloitetaan uusi jakso
+                    nextPeriods--;
+                }
+        
+                if (canCharge) {
+                    const next = solve(idx + 1, blocksLeft - 1, nextPeriods, true);
+                    if (next.cost !== Infinity) {
+                        resCharge = {
+                            cost: prices[idx].totalPrice + next.cost,
+                            indices: [idx, ...next.indices]
+                        };
+                    }
+                }
+        
+                // Valitaan halvin
+                const result = resSkip.cost < resCharge.cost ? resSkip : resCharge;
+                memo.set(key, result);
+                return result;
+            }
+        
+            const optimal = solve(0, totalNeeded, maxPeriods, false);
+            return optimal;
+        }
+
+        function groupIndicesToPeriods(selectedIndices, prices) {
+            if (selectedIndices.length === 0) return [];
+        
+            // Varmistetaan, että indeksit ovat järjestyksessä
+            selectedIndices.sort((a, b) => a - b);
+        
+            const periods = [];
+            let startIdx = selectedIndices[0];
+            let prevIdx = selectedIndices[0];
+        
+            for (let i = 1; i <= selectedIndices.length; i++) {
+                const currentIdx = selectedIndices[i];
+                
+                // Jos indeksi ei ole peräkkäinen tai lista loppui, suljetaan jakso
+                if (currentIdx !== prevIdx + 1 || i === selectedIndices.length) {
+                    const startDate = prices[startIdx].date;
+                    // Päättymisaika on viimeisen vartin loppu (+15 min)
+                    const endDate = new Date(prices[prevIdx].date.getTime() + 15 * 60000);
+                    
+                    periods.push({
+                        start: startDate,
+                        end: endDate
+                    });
+        
+                    if (i < selectedIndices.length) {
+                        startIdx = currentIdx;
+                        prevIdx = currentIdx;
+                    }
+                } else {
+                    prevIdx = currentIdx;
+                }
+            }
+            return periods;
         }
 
         function isNightTime(currentDate, startMin, endMin) {
