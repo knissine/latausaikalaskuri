@@ -157,7 +157,7 @@
 
         <h2>
             Latausaikalaskuri
-            <span class="version-info">v. 20260106</span>
+            <span class="version-info">v. 20260208</span>
         </h2>
 
         <div id="price_status" class="content-box">Ladataan hintoja...</div>
@@ -226,6 +226,15 @@
                         <option value="1" selected>Huomenna</option>
                     </select>
                     <input type="text" id="end_time" value="23:59" style="flex:1">
+                </div>
+            </div>
+
+            <div class="input-group">
+                <div class="flex-row">
+                    <div class="input-group" style="flex:1">
+                        <label>Latausjaksojen määrä:</label>
+                        <input type="number" id="max_periods" value="1">
+                    </div>
                 </div>
             </div>
 
@@ -406,6 +415,11 @@
             let transferNight = parseLocalizedNumber(document.getElementById("transfer_night").value);
             if (!isFinite(transferNight)) transferNight = 0;
 
+            const maxPeriods = parseLocalizedNumber(document.getElementById("max_periods").value);
+            if (!isFinite(maxPeriods) || maxPeriods <= 0) {
+                showResultError("Virheellinen latausjaksojen määrä. Anna positiivinen numero.");
+                return;
+            }
             const totalHoursExact = energyNeeded / chargingPower; // tuntia desimaalina
 
             if (!isFinite(totalHoursExact) || totalHoursExact <= 0) {
@@ -452,46 +466,26 @@
                     }
             });
 
-
-const result = findOptimalPeriods(windowPrices, blocksNeeded, 4);
-
-if (result.cost === Infinity) {
-    showResultError("Optimointi epäonnistui. Ehkä aikaikkuna on liian lyhyt?");
-    return;
-}
-
-// result.indices sisältää nyt kaikkien valittujen 15min jaksojen indeksit
-// Voit ryhmitellä ne tulosteeseen näin:
-const selectedPrices = result.indices.map(i => windowPrices[i]);
-// avgPrice = result.cost / blocksNeeded;
-
-
             if (windowPrices.length < blocksNeeded) {
                 showResultError(`Aikaikkuna on liian lyhyt. Tarve ${fiNumber.format(blocksNeeded/4)} h.`);
                 return;
             }
 
-            let minSum = Infinity;
-            let bestStartIndex = 0;
-
-            for (let i = 0; i <= windowPrices.length - blocksNeeded; i++) {
-                let currentWindowSum = 0;
-                for (let j = 0; j < blocksNeeded; j++) {
-                    // totalPrice on jo varmuudella numero
-                    currentWindowSum += windowPrices[i + j].totalPrice;
-                }
-                if (currentWindowSum < minSum) {
-                    minSum = currentWindowSum;
-                    bestStartIndex = i;
-                }
-            }
-
-            if (!isFinite(minSum)) {
-                showResultError("Hintojen laskennassa ilmeni virhe (tarkista hinnat).");
+            const result = findOptimalPeriods(windowPrices, blocksNeeded, maxPeriods);
+            
+            if (result.cost === Infinity) {
+                showResultError("Optimointi epäonnistui. Ehkä aikaikkuna on liian lyhyt?");
                 return;
             }
+            
+            const selectedPrices = result.indices.map(i => windowPrices[i]); // Turha rivi
+            const finalPeriods = groupIndicesToPeriods(result.indices, windowPrices);
+            let periodsHtml = `
+                <div style="font-size:1.6rem; font-weight:bold">Latausjaksot:</div>
+                ${finalPeriods.map(p => constructChargingPeriod(p.start, p.end)).join('')}
+            `;
 
-            let avgPrice = minSum / blocksNeeded; // snt/kWh
+            let avgPrice = result.cost / blocksNeeded; // snt/kWh
             const EPS = 1e-9;
             if (Math.abs(avgPrice) < EPS) avgPrice = 0;
 
@@ -514,9 +508,6 @@ const selectedPrices = result.indices.map(i => windowPrices[i]);
             const minutesStr = minutes.toString().padStart(2, '0');
             const timeStr = hours > 0 ? `${hours} h ${minutesStr} min` : `${minutes} min`;
 
-            const startData = windowPrices[bestStartIndex];
-            const startTime = startData.date;
-            const endTime = new Date(startTime.getTime() + blocksNeeded * 15 * 60000);
             const chargingPowerDisplay  = toFinnishString(chargingPower);
             const supplierMarginDisplay = toFinnishString(supplierMargin);
             const transferDayDisplay    = toFinnishString(transferDay);
@@ -535,7 +526,7 @@ const selectedPrices = result.indices.map(i => windowPrices[i]);
 
             const resPeriodsDiv = document.getElementById('result_periods');
             resPeriodsDiv.style.display = "block";
-            resPeriodsDiv.innerHTML = constructChargingPeriod(startTime, endTime) + constructChargingPeriod(startTime, endTime);
+            resPeriodsDiv.innerHTML = periodsHtml;
 
             const resPrices = document.getElementById('result_prices');
             resPrices.style.display = "block";
