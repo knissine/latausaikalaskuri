@@ -5,6 +5,8 @@ Käyttäjä voi siis selaimella muodostaa pikakuvakkeen puhelimen näytölle ja 
 Sovelluksessa voi pitää yllä pörssisähkön marginaalia, siirtohintaa yö- ja päiväsähkölle (hammasratas näytön oikeassa yläkulmassa) ja listaa autoista (päänäytöllä).
 Tiedot tallennetaan selaimen localStorage:en.
 
+Julkaistuu osoitteeseen: https://knissine.github.io/latausaikalaskuri/latausaikalaskuri.html
+
 Sähkön hinta haetaan osoitteesta: https://api.spot-hinta.fi/TodayAndDayForward
 
 Tällä hetkellä valitaan yksi yhtenäinen latausjakso.
